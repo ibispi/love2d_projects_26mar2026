@@ -52,6 +52,39 @@ function M.checkPocketing(state, config)
     end
 end
 
+function M.applyPocketGravity(state, config, dt)
+    local gravRadius = config.POCKET_GRAVITY_RADIUS
+    local gravStrength = config.POCKET_GRAVITY_STRENGTH
+    if not gravRadius or gravRadius <= 0 or not gravStrength or gravStrength <= 0 then return end
+
+    local holeR = config.HOLE_RADIUS
+    local threshold = holeR * 0.6
+
+    local function pullBall(body)
+        for _, hole in ipairs(state.holes) do
+            local bx, by = body:getPosition()
+            local dx = hole.x - bx
+            local dy = hole.y - by
+            local dist = math.sqrt(dx * dx + dy * dy)
+            if dist > threshold and dist < gravRadius then
+                local t = 1 - (dist - threshold) / (gravRadius - threshold)
+                local force = gravStrength * t * body:getMass()
+                body:applyForce(dx / dist * force, dy / dist * force)
+            end
+        end
+    end
+
+    local cueBall = state.cueBall
+    if cueBall and not cueBall.pocketed then
+        pullBall(cueBall.body)
+    end
+    for _, ball in ipairs(state.redBalls) do
+        if not ball.pocketed then
+            pullBall(ball.body)
+        end
+    end
+end
+
 function M.allBallsAtRest(state, config)
     local threshold = config.REST_THRESHOLD
     local cueBall = state.cueBall

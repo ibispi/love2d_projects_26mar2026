@@ -98,6 +98,7 @@ function M.update(dt)
         state.powerLevel = (math.sin(state.powerTimer * math.pi) + 1) / 2
     end
 
+    rules.applyPocketGravity(state, config, dt)
     rules.checkPocketing(state, config)
 
     if state.gamePhase == "moving" then
