@@ -5,8 +5,8 @@ function M.findValidPosition(state, config, occupied, margin)
     local tableLeft, tableTop = state.tableLeft, state.tableTop
     local tableW, tableH = state.tableW, state.tableH
     for _ = 1, 500 do
-        local x = tableLeft + padding + math.random() * (tableW - padding * 2)
-        local y = tableTop + padding + math.random() * (tableH - padding * 2)
+        local x = tableLeft + padding + love.math.random() * (tableW - padding * 2)
+        local y = tableTop + padding + love.math.random() * (tableH - padding * 2)
         local valid = true
         for _, occ in ipairs(occupied) do
             local dx = x - occ.x

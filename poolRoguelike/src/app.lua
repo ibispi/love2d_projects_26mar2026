@@ -35,7 +35,13 @@ local function computeTableBounds()
     state.tableH = state.tableBottom - state.tableTop
 end
 
+local function initRandomSeed()
+    love.math.setRandomSeed(os.time())
+end
+
 local function startRound()
+    initRandomSeed()
+
     state.score = 0
     state.gamePhase = "aim"
     state.redBalls = {}
