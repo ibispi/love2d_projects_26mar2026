@@ -1,0 +1,5 @@
+pool game notes:
+
+- at the end when it gets really slow, it's annoying to wait for it to get to player's turn
+- hitting the ball in the corner doesn't make it go the opposite of the hit but straight in the line
+- it seems all balls, and holes are placed at the same place every time
