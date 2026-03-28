@@ -18,31 +18,32 @@ function M.createRails(state, config)
 
     local cx = (tableLeft + tableRight) / 2
     local cy = (tableTop + tableBottom) / 2
-    local fullW = tableW + rt * 2
-    local fullH = tableH + rt * 2
 
+    -- Horizontal rails span the table width only (no overlap with vertical rails)
     local top = {}
     top.body = love.physics.newBody(world, cx, tableTop - rt / 2, "static")
-    top.shape = love.physics.newRectangleShape(fullW, rt)
+    top.shape = love.physics.newRectangleShape(tableW, rt)
     top.fixture = love.physics.newFixture(top.body, top.shape)
     top.fixture:setRestitution(0.85)
-    top.fixture:setFriction(0.1)
+    top.fixture:setFriction(0.05)
     table.insert(rails, top)
 
     local bot = {}
     bot.body = love.physics.newBody(world, cx, tableBottom + rt / 2, "static")
-    bot.shape = love.physics.newRectangleShape(fullW, rt)
+    bot.shape = love.physics.newRectangleShape(tableW, rt)
     bot.fixture = love.physics.newFixture(bot.body, bot.shape)
     bot.fixture:setRestitution(0.85)
-    bot.fixture:setFriction(0.1)
+    bot.fixture:setFriction(0.05)
     table.insert(rails, bot)
 
+    -- Vertical rails span the full height including corners
+    local fullH = tableH + rt * 2
     local left = {}
     left.body = love.physics.newBody(world, tableLeft - rt / 2, cy, "static")
     left.shape = love.physics.newRectangleShape(rt, fullH)
     left.fixture = love.physics.newFixture(left.body, left.shape)
     left.fixture:setRestitution(0.85)
-    left.fixture:setFriction(0.1)
+    left.fixture:setFriction(0.05)
     table.insert(rails, left)
 
     local right = {}
@@ -50,7 +51,7 @@ function M.createRails(state, config)
     right.shape = love.physics.newRectangleShape(rt, fullH)
     right.fixture = love.physics.newFixture(right.body, right.shape)
     right.fixture:setRestitution(0.85)
-    right.fixture:setFriction(0.1)
+    right.fixture:setFriction(0.05)
     table.insert(rails, right)
 end
 

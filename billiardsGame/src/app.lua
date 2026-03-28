@@ -26,6 +26,7 @@ local state = {
     pottedThisTurn = {}, -- colors of balls potted during current shot
     cueScratchedThisTurn = false,
     turnDelayTimer = 0,
+    physicsAccumulator = 0,
     -- Scaling state (computed each frame)
     scale = 1,
     offsetX = 0,
@@ -173,7 +174,15 @@ function M.update(dt)
         return
     end
 
-    state.world:update(dt)
+    -- Fixed-timestep sub-stepping for stable physics
+    local fixedDt = config.PHYSICS_TIMESTEP
+    state.physicsAccumulator = state.physicsAccumulator + dt
+    while state.physicsAccumulator >= fixedDt do
+        state.world:update(fixedDt)
+        rules.applyPocketGravity(state, config, fixedDt)
+        rules.checkPocketing(state, config)
+        state.physicsAccumulator = state.physicsAccumulator - fixedDt
+    end
 
     local cueBall = state.cueBall
     if state.gamePhase == "aim" and cueBall and not cueBall.pocketed then
@@ -187,9 +196,6 @@ function M.update(dt)
         state.powerTimer = state.powerTimer + dt * config.POWER_OSCILLATE_SPEED
         state.powerLevel = (math.sin(state.powerTimer * math.pi) + 1) / 2
     end
-
-    rules.applyPocketGravity(state, config, dt)
-    rules.checkPocketing(state, config)
 
     if state.gamePhase == "moving" then
         if rules.allBallsAtRest(state, config) then
