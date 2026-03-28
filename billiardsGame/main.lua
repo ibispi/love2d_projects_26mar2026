@@ -1,4 +1,4 @@
--- Billiards Roguelike — entry point (logic in src/)
+-- Billiards — entry point (logic in src/)
 
 local game = require("src.app")
 

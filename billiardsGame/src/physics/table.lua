@@ -54,11 +54,11 @@ function M.createRails(state, config)
     table.insert(rails, right)
 end
 
-function M.createBall(state, config, x, y, ballType)
+function M.createBall(state, config, x, y, ballColor)
     local world = state.world
     local r = config.BALL_RADIUS
     local ball = {}
-    ball.type = ballType
+    ball.ballColor = ballColor
     ball.body = love.physics.newBody(world, x, y, "dynamic")
     ball.body:setBullet(true)
     ball.shape = love.physics.newCircleShape(r)
@@ -67,7 +67,7 @@ function M.createBall(state, config, x, y, ballType)
     ball.fixture:setFriction(0.15)
     ball.body:setLinearDamping(0.65)
     ball.body:setAngularDamping(0.3)
-    ball.fixture:setUserData({type = ballType, ball = ball})
+    ball.fixture:setUserData({type = ballColor, ball = ball})
     ball.pocketed = false
     return ball
 end

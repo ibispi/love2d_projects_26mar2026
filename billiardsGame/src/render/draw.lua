@@ -1,3 +1,5 @@
+local rules = require("src.game.rules")
+
 local M = {}
 
 local function drawTable(state, config)
@@ -13,13 +15,18 @@ local function drawTable(state, config)
         state.tableW, state.tableH)
 end
 
-local function drawHoles(state, config)
+local function drawPockets(state, config)
     local hr = config.HOLE_RADIUS
-    for _, hole in ipairs(state.holes) do
-        love.graphics.setColor(0, 0, 0, 0.3)
-        love.graphics.circle("fill", hole.x, hole.y, hr + 3)
+    for _, pocket in ipairs(state.pockets) do
+        -- Outer shadow ring
+        love.graphics.setColor(0, 0, 0, 0.4)
+        love.graphics.circle("fill", pocket.x, pocket.y, hr + 4)
+        -- Dark ring
+        love.graphics.setColor(0.03, 0.03, 0.03)
+        love.graphics.circle("fill", pocket.x, pocket.y, hr + 2)
+        -- Pocket hole
         love.graphics.setColor(config.COLOR_HOLE)
-        love.graphics.circle("fill", hole.x, hole.y, hr)
+        love.graphics.circle("fill", pocket.x, pocket.y, hr)
     end
 end
 
@@ -27,18 +34,50 @@ local function drawBall(state, config, ball, color)
     local r = config.BALL_RADIUS
     local x, y = ball.body:getPosition()
 
+    -- Shadow
     love.graphics.setColor(0, 0, 0, 0.25)
     love.graphics.circle("fill", x + 2, y + 2, r)
 
+    -- Main color
     love.graphics.setColor(color)
     love.graphics.circle("fill", x, y, r)
 
+    -- Outline
     love.graphics.setColor(config.COLOR_OUTLINE)
     love.graphics.setLineWidth(1.5)
     love.graphics.circle("line", x, y, r)
 
+    -- Shine
     love.graphics.setColor(1, 1, 1, 0.35)
     love.graphics.circle("fill", x - 3, y - 3, r * 0.35)
+end
+
+local function drawBlackBall(state, config, ball)
+    local r = config.BALL_RADIUS
+    local x, y = ball.body:getPosition()
+
+    -- Shadow
+    love.graphics.setColor(0, 0, 0, 0.25)
+    love.graphics.circle("fill", x + 2, y + 2, r)
+
+    -- Main black
+    love.graphics.setColor(config.COLOR_BLACK)
+    love.graphics.circle("fill", x, y, r)
+
+    -- White dot in center to distinguish from pockets
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.circle("fill", x, y, r * 0.35)
+
+    -- "8" text
+    love.graphics.setColor(0, 0, 0)
+    local font = love.graphics.getFont()
+    local text = "8"
+    love.graphics.print(text, x - font:getWidth(text) / 2, y - font:getHeight() / 2)
+
+    -- Outline
+    love.graphics.setColor(config.COLOR_OUTLINE)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.circle("line", x, y, r)
 end
 
 local function drawAimLine(state, config)
@@ -123,56 +162,64 @@ local function drawPowerMeter(state, config)
     love.graphics.print(pctText, barX + barW / 2 - font:getWidth(pctText) / 2, barY + barH / 2 - font:getHeight() / 2)
 end
 
-local function drawDeckPanel(state, config)
-    local panelX = config.WINDOW_W - 140
-    local panelY = 50
-    local panelW = 130
-    local panelH = 160
-
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.rectangle("fill", panelX, panelY, panelW, panelH, 6, 6)
-
-    love.graphics.setColor(1, 1, 1, 0.9)
-    love.graphics.print("Deck:", panelX + 10, panelY + 8)
-
-    love.graphics.setColor(config.COLOR_WHITE)
-    love.graphics.circle("fill", panelX + 22, panelY + 38, 8)
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.circle("line", panelX + 22, panelY + 38, 8)
-    love.graphics.setColor(1, 1, 1, 0.8)
-    love.graphics.print("x1 Cue Ball", panelX + 35, panelY + 30)
-
-    love.graphics.setColor(config.COLOR_RED)
-    love.graphics.circle("fill", panelX + 22, panelY + 62, 8)
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.circle("line", panelX + 22, panelY + 62, 8)
-    love.graphics.setColor(1, 1, 1, 0.8)
-    love.graphics.print(string.format("x%d Red Balls", config.NUM_RED_BALLS), panelX + 35, panelY + 54)
-
-    love.graphics.setColor(config.COLOR_HOLE)
-    love.graphics.circle("fill", panelX + 22, panelY + 86, 8)
-    love.graphics.setColor(1, 1, 1, 0.8)
-    love.graphics.print("x1 Pocket", panelX + 35, panelY + 78)
-
-    love.graphics.setColor(1, 0.9, 0.3)
-    love.graphics.print(string.format("Target: %d", state.targetScore), panelX + 10, panelY + 110)
-    love.graphics.print(string.format("Per Ball: %d", config.POINTS_PER_BALL), panelX + 10, panelY + 130)
+local function getColorForBall(config, ballColor)
+    if ballColor == "red" then return config.COLOR_RED
+    elseif ballColor == "blue" then return config.COLOR_BLUE
+    else return config.COLOR_BLACK
+    end
 end
 
 local function drawUI(state, config)
     local font = love.graphics.getFont()
     local phase = state.gamePhase
 
+    -- Top bar background
     love.graphics.setColor(config.COLOR_UI_BG)
-    love.graphics.rectangle("fill", 0, 0, config.WINDOW_W, 36, 0, 0)
+    love.graphics.rectangle("fill", 0, 0, config.WINDOW_W, 40, 0, 0)
 
     love.graphics.setColor(config.COLOR_UI_TEXT)
-    local scoreText = string.format("Score: %d / Target: %d", state.score, state.targetScore)
-    love.graphics.print(scoreText, 20, 10)
 
-    local remainText = string.format("Red Balls: %d", #state.redBalls)
-    love.graphics.print(remainText, 300, 10)
+    -- Turn indicator
+    local turnText
+    if state.currentPlayer == 1 then
+        turnText = "YOUR TURN"
+    else
+        turnText = "OPPONENT'S TURN"
+    end
+    love.graphics.print(turnText, 20, 12)
 
+    -- Ball counts
+    local redCount = rules.countBallsByColor(state, "red")
+    local blueCount = rules.countBallsByColor(state, "blue")
+
+    -- Red count with colored indicator
+    local countX = 200
+    love.graphics.setColor(config.COLOR_RED)
+    love.graphics.circle("fill", countX, 20, 8)
+    love.graphics.setColor(config.COLOR_OUTLINE)
+    love.graphics.circle("line", countX, 20, 8)
+    love.graphics.setColor(config.COLOR_UI_TEXT)
+    love.graphics.print(string.format(": %d", redCount), countX + 12, 12)
+
+    -- Blue count with colored indicator
+    countX = 290
+    love.graphics.setColor(config.COLOR_BLUE)
+    love.graphics.circle("fill", countX, 20, 8)
+    love.graphics.setColor(config.COLOR_OUTLINE)
+    love.graphics.circle("line", countX, 20, 8)
+    love.graphics.setColor(config.COLOR_UI_TEXT)
+    love.graphics.print(string.format(": %d", blueCount), countX + 12, 12)
+
+    -- Player color assignment
+    local assignText
+    if state.playerColor then
+        assignText = string.format("You: %s", string.upper(state.playerColor))
+    else
+        assignText = "Color: not assigned"
+    end
+    love.graphics.print(assignText, 380, 12)
+
+    -- Phase indicator
     local phaseText = ""
     if phase == "aim" then
         phaseText = "AIM - Click to set angle"
@@ -180,22 +227,31 @@ local function drawUI(state, config)
         phaseText = "POWER - Click to shoot!"
     elseif phase == "moving" then
         phaseText = "..."
+    elseif phase == "turnOver" then
+        if state.currentPlayer == 1 then
+            phaseText = "Switching turns..."
+        else
+            phaseText = "Opponent is thinking..."
+        end
     end
-    love.graphics.print(phaseText, config.WINDOW_W - font:getWidth(phaseText) - 20, 10)
+    love.graphics.setColor(config.COLOR_UI_TEXT)
+    love.graphics.print(phaseText, config.WINDOW_W - font:getWidth(phaseText) - 20, 12)
 
-    drawDeckPanel(state, config)
-
-    if phase == "roundComplete" then
-        love.graphics.setColor(0, 0, 0, 0.6)
+    -- Game over overlay
+    if state.gameResult then
+        love.graphics.setColor(0, 0, 0, 0.7)
         love.graphics.rectangle("fill", 0, 0, config.WINDOW_W, config.WINDOW_H)
 
         love.graphics.setColor(1, 1, 1)
-        local msg = "ROUND COMPLETE!"
-        local msg2 = string.format("Final Score: %d", state.score)
-        local msg3 = "Click or press SPACE to restart"
-        love.graphics.print(msg, config.WINDOW_W / 2 - font:getWidth(msg) / 2, config.WINDOW_H / 2 - 40)
-        love.graphics.print(msg2, config.WINDOW_W / 2 - font:getWidth(msg2) / 2, config.WINDOW_H / 2)
-        love.graphics.print(msg3, config.WINDOW_W / 2 - font:getWidth(msg3) / 2, config.WINDOW_H / 2 + 40)
+        local msg, msg2
+        if state.gameResult == "win" then
+            msg = "YOU WIN!"
+        else
+            msg = "YOU LOSE!"
+        end
+        msg2 = "Click or press SPACE to restart"
+        love.graphics.print(msg, config.WINDOW_W / 2 - font:getWidth(msg) / 2, config.WINDOW_H / 2 - 30)
+        love.graphics.print(msg2, config.WINDOW_W / 2 - font:getWidth(msg2) / 2, config.WINDOW_H / 2 + 20)
     end
 end
 
@@ -204,19 +260,26 @@ function M.draw(state, config)
     love.graphics.rectangle("fill", 0, 0, config.WINDOW_W, config.WINDOW_H)
 
     drawTable(state, config)
-    drawHoles(state, config)
+    drawPockets(state, config)
 
-    for _, ball in ipairs(state.redBalls) do
+    -- Draw object balls
+    for _, ball in ipairs(state.balls) do
         if not ball.pocketed then
-            drawBall(state, config, ball, config.COLOR_RED)
+            if ball.ballColor == "black" then
+                drawBlackBall(state, config, ball)
+            else
+                drawBall(state, config, ball, getColorForBall(config, ball.ballColor))
+            end
         end
     end
 
+    -- Draw cue ball
     local cueBall = state.cueBall
     if cueBall and not cueBall.pocketed then
         drawBall(state, config, cueBall, config.COLOR_WHITE)
     end
 
+    -- Aim and cue stick
     local phase = state.gamePhase
     if phase == "aim" and cueBall and not cueBall.pocketed then
         drawAimLine(state, config)

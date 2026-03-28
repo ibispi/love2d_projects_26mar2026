@@ -1,18 +1,15 @@
 local config = require("src.config")
 local physics = require("src.physics.table")
-local spawn = require("src.physics.spawn")
 local rules = require("src.game.rules")
 local render = require("src.render.draw")
 
 local state = {
     world = nil,
     cueBall = nil,
-    redBalls = {},
-    holes = {},
+    balls = {},       -- all 15 object balls (red, blue, black)
+    pockets = {},
     rails = {},
-    score = 0,
-    targetScore = config.TARGET_SCORE,
-    gamePhase = "aim",
+    gamePhase = "aim", -- aim, power, moving, turnOver, gameOver
     aimAngle = 0,
     powerLevel = 0,
     powerTimer = 0,
@@ -22,6 +19,13 @@ local state = {
     tableBottom = 0,
     tableW = 0,
     tableH = 0,
+    currentPlayer = 1,   -- 1 = player, 2 = opponent
+    playerColor = nil,   -- nil until first pot, then "red" or "blue"
+    opponentColor = nil,
+    gameResult = nil,    -- nil, "win", "lose"
+    pottedThisTurn = {}, -- colors of balls potted during current shot
+    cueScratchedThisTurn = false,
+    turnDelayTimer = 0,
 }
 
 local function computeTableBounds()
@@ -35,54 +39,116 @@ local function computeTableBounds()
     state.tableH = state.tableBottom - state.tableTop
 end
 
-local function initRandomSeed()
-    love.math.setRandomSeed(os.time())
+local function createPockets()
+    state.pockets = {}
+    local tl = state.tableLeft
+    local tr = state.tableRight
+    local tt = state.tableTop
+    local tb = state.tableBottom
+    local cx = (tl + tr) / 2
+
+    local positions = {
+        {x = tl, y = tt},       -- top-left
+        {x = cx, y = tt},       -- top-middle
+        {x = tr, y = tt},       -- top-right
+        {x = tl, y = tb},       -- bottom-left
+        {x = cx, y = tb},       -- bottom-middle
+        {x = tr, y = tb},       -- bottom-right
+    }
+
+    for _, pos in ipairs(positions) do
+        table.insert(state.pockets, physics.createHole(state, config, pos.x, pos.y))
+    end
 end
 
-local function startRound()
-    initRandomSeed()
+local function createTriangleRack()
+    state.balls = {}
+    local br = config.BALL_RADIUS
+    local rackX = state.tableLeft + state.tableW * 0.72
+    local rackCenterY = state.tableTop + state.tableH * 0.5
 
-    state.score = 0
+    -- Row spacing: horizontal distance between rows of tightly packed balls
+    local rowDX = br * 2 * math.cos(math.rad(30))  -- = br * sqrt(3)
+
+    -- Layout: each row lists ball colors top-to-bottom
+    -- 7 red, 7 blue, 1 black = 15 total
+    local layout = {
+        {"red"},
+        {"blue", "red"},
+        {"red", "black", "blue"},
+        {"blue", "red", "blue", "red"},
+        {"blue", "red", "blue", "red", "blue"},
+    }
+
+    for row, colors in ipairs(layout) do
+        local n = #colors
+        local x = rackX + (row - 1) * rowDX
+        for i, ballColor in ipairs(colors) do
+            -- Center each row vertically
+            local y = rackCenterY + (i - 1) * (br * 2) - (n - 1) * br
+            local ball = physics.createBall(state, config, x, y, ballColor)
+            table.insert(state.balls, ball)
+        end
+    end
+end
+
+local function startGame()
     state.gamePhase = "aim"
-    state.redBalls = {}
-    state.holes = {}
+    state.balls = {}
+    state.pockets = {}
     state.rails = {}
+    state.currentPlayer = 1
+    state.playerColor = nil
+    state.opponentColor = nil
+    state.gameResult = nil
+    state.pottedThisTurn = {}
+    state.cueScratchedThisTurn = false
+    state.turnDelayTimer = 0
 
     state.world = love.physics.newWorld(0, 0, true)
     physics.setWorldCallbacks(state.world)
 
     physics.createRails(state, config)
+    createPockets()
 
-    local occupied = {}
-
-    local hx, hy = spawn.findValidPosition(state, config, occupied, config.HOLE_RADIUS + 30)
-    table.insert(occupied, {x = hx, y = hy, r = config.HOLE_RADIUS + config.BALL_RADIUS + 5})
-    table.insert(state.holes, physics.createHole(state, config, hx, hy))
-
-    local cx, cy = spawn.findValidPosition(state, config, occupied, config.BALL_RADIUS + 10)
-    table.insert(occupied, {x = cx, y = cy, r = config.BALL_RADIUS * 3})
+    -- Cue ball at 1/4 from left, centered vertically
+    local cx = state.tableLeft + state.tableW * 0.25
+    local cy = state.tableTop + state.tableH * 0.5
     state.cueBall = physics.createBall(state, config, cx, cy, "cue")
 
-    for _ = 1, config.NUM_RED_BALLS do
-        local rx, ry = spawn.findValidPosition(state, config, occupied, config.BALL_RADIUS + 5)
-        table.insert(occupied, {x = rx, y = ry, r = config.BALL_RADIUS * 3})
-        table.insert(state.redBalls, physics.createBall(state, config, rx, ry, "red"))
-    end
+    createTriangleRack()
 end
 
 local M = {}
 
 function M.load()
-    love.window.setTitle("Billiards Roguelike")
+    love.window.setTitle("Billiards")
     love.window.setMode(config.WINDOW_W, config.WINDOW_H, {resizable = false})
     love.graphics.setBackgroundColor(config.COLOR_BG)
 
     computeTableBounds()
-    startRound()
+    startGame()
 end
 
 function M.update(dt)
-    if state.gamePhase == "roundComplete" then return end
+    if state.gameResult then return end
+
+    if state.gamePhase == "turnOver" then
+        state.turnDelayTimer = state.turnDelayTimer - dt
+        if state.turnDelayTimer <= 0 then
+            if state.currentPlayer == 1 then
+                -- Player's turn ended, switch to opponent
+                state.currentPlayer = 2
+                state.turnDelayTimer = config.TURN_DELAY
+                -- Opponent has no AI yet, auto-pass after delay
+            else
+                -- Opponent's turn ended, back to player
+                state.currentPlayer = 1
+                state.gamePhase = "aim"
+            end
+        end
+        return
+    end
 
     state.world:update(dt)
 
@@ -103,10 +169,10 @@ function M.update(dt)
 
     if state.gamePhase == "moving" then
         if rules.allBallsAtRest(state, config) then
-            if state.score >= state.targetScore or rules.countRedBalls(state) == 0 then
-                state.gamePhase = "roundComplete"
-            else
-                state.gamePhase = "aim"
+            rules.evaluateTurn(state, config)
+            -- If evaluateTurn set turnOver, start the delay timer
+            if state.gamePhase == "turnOver" then
+                state.turnDelayTimer = config.TURN_DELAY
             end
         end
     end
@@ -119,23 +185,29 @@ end
 function M.mousepressed(_x, _y, button)
     if button ~= 1 then return end
 
-    if state.gamePhase == "aim" then
+    if state.gameResult then
+        startGame()
+        return
+    end
+
+    if state.gamePhase == "aim" and state.currentPlayer == 1 then
         state.gamePhase = "power"
         state.powerTimer = 0
         state.powerLevel = 0
     elseif state.gamePhase == "power" then
+        state.pottedThisTurn = {}
+        state.cueScratchedThisTurn = false
         rules.shoot(state, config)
-    elseif state.gamePhase == "roundComplete" then
-        startRound()
     end
 end
 
 function M.keypressed(key)
-    if key == "space" and state.gamePhase == "roundComplete" then
-        startRound()
-    end
     if key == "escape" then
         love.event.quit()
+    end
+
+    if state.gameResult and key == "space" then
+        startGame()
     end
 end
 
