@@ -1,3 +1,0 @@
-pool game notes:
-
-- hitting the ball in the corner doesn't make it go the opposite of the hit but straight in the line
