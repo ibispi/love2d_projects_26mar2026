@@ -16,7 +16,7 @@ local function drawTable(state, config)
 end
 
 local function drawPockets(state, config)
-    local hr = config.HOLE_RADIUS
+    local hr = config.HOLE_RADIUS*config.HOLE_DRAWN_RADIUS_MULTIPLIER
     for _, pocket in ipairs(state.pockets) do
         -- Outer shadow ring
         love.graphics.setColor(0, 0, 0, 0.4)

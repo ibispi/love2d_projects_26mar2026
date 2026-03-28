@@ -47,13 +47,14 @@ local function createPockets()
     local tb = state.tableBottom
     local cx = (tl + tr) / 2
 
+    local inset = config.CENTER_POCKET_INSET
     local positions = {
-        {x = tl, y = tt},       -- top-left
-        {x = cx, y = tt},       -- top-middle
-        {x = tr, y = tt},       -- top-right
-        {x = tl, y = tb},       -- bottom-left
-        {x = cx, y = tb},       -- bottom-middle
-        {x = tr, y = tb},       -- bottom-right
+        {x = tl, y = tt},              -- top-left
+        {x = cx, y = tt + inset},      -- top-middle (pushed inward)
+        {x = tr, y = tt},              -- top-right
+        {x = tl, y = tb},              -- bottom-left
+        {x = cx, y = tb - inset},      -- bottom-middle (pushed inward)
+        {x = tr, y = tb},              -- bottom-right
     }
 
     for _, pos in ipairs(positions) do

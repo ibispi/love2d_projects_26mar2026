@@ -82,13 +82,23 @@ function M.applyPocketGravity(state, config, dt)
         end
     end
 
-    local cueBall = state.cueBall
-    if cueBall and not cueBall.pocketed then
-        pullBall(cueBall.body)
-    end
+    -- No gravity on the cue ball
     for _, ball in ipairs(state.balls) do
         if not ball.pocketed then
-            pullBall(ball.body)
+            if ball.ballColor == "black" then
+                -- Only apply gravity to the black ball when potting it would win
+                local myColor
+                if state.currentPlayer == 1 then
+                    myColor = state.playerColor
+                else
+                    myColor = state.opponentColor
+                end
+                if myColor and M.countBallsByColor(state, myColor) == 0 then
+                    pullBall(ball.body)
+                end
+            else
+                pullBall(ball.body)
+            end
         end
     end
 end
