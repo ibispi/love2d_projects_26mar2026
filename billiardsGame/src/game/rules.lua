@@ -157,7 +157,7 @@ function M.evaluateTurn(state, config)
         local myColor = state.playerColor
         if state.currentPlayer == 1 then
             -- Player potted the black ball
-            if myColor and M.countBallsByColor(state, myColor) == 0 then
+            if M.countBallsByColor(state, myColor) == 0 then
                 state.gameResult = "win"
             else
                 state.gameResult = "lose"
@@ -165,7 +165,7 @@ function M.evaluateTurn(state, config)
         else
             -- Opponent potted the black ball
             local oppColor = state.opponentColor
-            if oppColor and M.countBallsByColor(state, oppColor) == 0 then
+            if M.countBallsByColor(state, oppColor) == 0 then
                 state.gameResult = "lose" -- opponent wins = player loses
             else
                 state.gameResult = "win" -- opponent fouled = player wins
@@ -183,27 +183,8 @@ function M.evaluateTurn(state, config)
         return
     end
 
-    -- Assign player color on first pot (if not yet assigned)
-    if not state.playerColor and #potted > 0 and state.currentPlayer == 1 then
-        for _, color in ipairs(potted) do
-            if color == "red" or color == "blue" then
-                state.playerColor = color
-                state.opponentColor = (color == "red") and "blue" or "red"
-                break
-            end
-        end
-    elseif not state.playerColor and #potted > 0 and state.currentPlayer == 2 then
-        for _, color in ipairs(potted) do
-            if color == "red" or color == "blue" then
-                state.opponentColor = color
-                state.playerColor = (color == "red") and "blue" or "red"
-                break
-            end
-        end
-    end
-
     -- Determine if current player gets another turn
-    if #potted > 0 and state.playerColor then
+    if #potted > 0 then
         local myColor
         if state.currentPlayer == 1 then
             myColor = state.playerColor
@@ -224,7 +205,7 @@ function M.evaluateTurn(state, config)
             if state.currentPlayer == 1 then
                 state.gamePhase = "aim"
             else
-                state.gamePhase = "turnOver"
+                state.gamePhase = "aiThinking"
             end
             return
         end

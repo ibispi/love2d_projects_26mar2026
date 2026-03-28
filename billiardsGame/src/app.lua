@@ -1,15 +1,17 @@
 local config = require("src.config")
 local physics = require("src.physics.table")
 local rules = require("src.game.rules")
+local ai = require("src.game.ai")
 local render = require("src.render.draw")
+local allOpponents = require("src.opponents")
 
 local state = {
     world = nil,
     cueBall = nil,
-    balls = {},       -- all 15 object balls (red, blue, black)
+    balls = {},       -- all 15 object balls (player color, opponent color, black)
     pockets = {},
     rails = {},
-    gamePhase = "aim", -- aim, power, moving, turnOver, gameOver
+    gamePhase = "aim", -- aim, power, moving, turnOver, aiThinking, gameOver
     aimAngle = 0,
     powerLevel = 0,
     powerTimer = 0,
@@ -20,10 +22,10 @@ local state = {
     tableW = 0,
     tableH = 0,
     currentPlayer = 1,   -- 1 = player, 2 = opponent
-    playerColor = nil,   -- nil until first pot, then "red" or "blue"
-    opponentColor = nil,
+    playerColor = "blue",
+    opponentColor = "red",
     gameResult = nil,    -- nil, "win", "lose"
-    pottedThisTurn = {}, -- colors of balls potted during current shot
+    pottedThisTurn = {},
     cueScratchedThisTurn = false,
     turnDelayTimer = 0,
     physicsAccumulator = 0,
@@ -31,6 +33,16 @@ local state = {
     scale = 1,
     offsetX = 0,
     offsetY = 0,
+    -- Render colors (RGB tables)
+    playerRenderColor = {},
+    opponentRenderColor = {},
+    -- Opponent / AI state
+    opponent = nil,       -- opponent definition table
+    aiThinkTimer = 0,
+    aiTargetAngle = 0,
+    aiTargetPower = 0,
+    aiStartAngle = 0,
+    aiThinkDuration = 0, -- total think time for lerp calculation
 }
 
 local function computeTableBounds()
@@ -59,6 +71,28 @@ local function screenToDesign(sx, sy)
     return dx, dy
 end
 
+-- RGB distance for color similarity check
+local function colorDistance(c1, c2)
+    local dr = c1[1] - c2[1]
+    local dg = c1[2] - c2[2]
+    local db = c1[3] - c2[3]
+    return math.sqrt(dr * dr + dg * dg + db * db)
+end
+
+-- Angle lerp that handles wrapping around +/- pi
+local function lerpAngle(a, b, t)
+    local diff = b - a
+    while diff > math.pi do diff = diff - 2 * math.pi end
+    while diff < -math.pi do diff = diff + 2 * math.pi end
+    return a + diff * t
+end
+
+-- Smoothstep interpolation
+local function smoothstep(t)
+    t = math.max(0, math.min(1, t))
+    return t * t * (3 - 2 * t)
+end
+
 local function createPockets()
     state.pockets = {}
     local tl = state.tableLeft
@@ -69,12 +103,12 @@ local function createPockets()
 
     local inset = config.CENTER_POCKET_INSET
     local positions = {
-        {x = tl, y = tt},              -- top-left
-        {x = cx, y = tt + inset},      -- top-middle (pushed inward)
-        {x = tr, y = tt},              -- top-right
-        {x = tl, y = tb},              -- bottom-left
-        {x = cx, y = tb - inset},      -- bottom-middle (pushed inward)
-        {x = tr, y = tb},              -- bottom-right
+        {x = tl, y = tt},
+        {x = cx, y = tt + inset},
+        {x = tr, y = tt},
+        {x = tl, y = tb},
+        {x = cx, y = tb - inset},
+        {x = tr, y = tb},
     }
 
     for _, pos in ipairs(positions) do
@@ -88,11 +122,9 @@ local function createTriangleRack()
     local rackX = state.tableLeft + state.tableW * 0.72
     local rackCenterY = state.tableTop + state.tableH * 0.5
 
-    -- Row spacing: horizontal distance between rows of tightly packed balls
-    local rowDX = br * 2 * math.cos(math.rad(30))  -- = br * sqrt(3)
+    local rowDX = br * 2 * math.cos(math.rad(30))
 
-    -- Layout: each row lists ball colors top-to-bottom
-    -- 7 red, 7 blue, 1 black = 15 total
+    -- "blue" = player, "red" = opponent, "black" = 8-ball
     local layout = {
         {"red"},
         {"blue", "red"},
@@ -105,7 +137,6 @@ local function createTriangleRack()
         local n = #colors
         local x = rackX + (row - 1) * rowDX
         for i, ballColor in ipairs(colors) do
-            -- Center each row vertically
             local y = rackCenterY + (i - 1) * (br * 2) - (n - 1) * br
             local ball = physics.createBall(state, config, x, y, ballColor)
             table.insert(state.balls, ball)
@@ -113,18 +144,48 @@ local function createTriangleRack()
     end
 end
 
-local function startGame()
+local function startAIThinking()
+    state.gamePhase = "aiThinking"
+    local thinkTime = state.opponent.ai.think_time
+    state.aiThinkTimer = thinkTime
+    state.aiThinkDuration = thinkTime
+    state.aiStartAngle = state.aimAngle
+
+    -- Calculate shot now, animate cue stick during think time
+    local angle, power = ai.calculateShot(state, config, state.opponent)
+    state.aiTargetAngle = angle
+    state.aiTargetPower = power
+end
+
+local function startMatch(opponent)
+    state.opponent = opponent
     state.gamePhase = "aim"
     state.balls = {}
     state.pockets = {}
     state.rails = {}
     state.currentPlayer = 1
-    state.playerColor = nil
-    state.opponentColor = nil
+    state.playerColor = "blue"
+    state.opponentColor = "red"
     state.gameResult = nil
     state.pottedThisTurn = {}
     state.cueScratchedThisTurn = false
     state.turnDelayTimer = 0
+    state.physicsAccumulator = 0
+    state.aiThinkTimer = 0
+    state.aiTargetAngle = 0
+    state.aiTargetPower = 0
+    state.aiStartAngle = 0
+    state.aiThinkDuration = 0
+
+    -- Set render colors
+    state.playerRenderColor = config.PLAYER_COLOR
+
+    -- Check if opponent color is too similar to player color
+    if colorDistance(opponent.balls_color, config.PLAYER_COLOR) < config.COLOR_SIMILARITY_THRESHOLD then
+        state.opponentRenderColor = opponent.alt_balls_color
+    else
+        state.opponentRenderColor = opponent.balls_color
+    end
 
     state.world = love.physics.newWorld(0, 0, true)
     physics.setWorldCallbacks(state.world)
@@ -132,7 +193,6 @@ local function startGame()
     physics.createRails(state, config)
     createPockets()
 
-    -- Cue ball at 1/4 from left, centered vertically
     local cx = state.tableLeft + state.tableW * 0.25
     local cy = state.tableTop + state.tableH * 0.5
     state.cueBall = physics.createBall(state, config, cx, cy, "cue")
@@ -149,7 +209,8 @@ function M.load()
 
     computeTableBounds()
     updateScale()
-    startGame()
+    -- Start match with default opponent (easy to swap)
+    startMatch(allOpponents.scarlett)
 end
 
 function M.update(dt)
@@ -157,19 +218,39 @@ function M.update(dt)
 
     if state.gameResult then return end
 
+    -- Turn transition delay
     if state.gamePhase == "turnOver" then
         state.turnDelayTimer = state.turnDelayTimer - dt
         if state.turnDelayTimer <= 0 then
             if state.currentPlayer == 1 then
-                -- Player's turn ended, switch to opponent
+                -- Player's turn ended, switch to opponent AI
                 state.currentPlayer = 2
-                state.turnDelayTimer = config.TURN_DELAY
-                -- Opponent has no AI yet, auto-pass after delay
+                startAIThinking()
             else
                 -- Opponent's turn ended, back to player
                 state.currentPlayer = 1
                 state.gamePhase = "aim"
             end
+        end
+        return
+    end
+
+    -- AI thinking: animate cue stick rotation, then shoot
+    if state.gamePhase == "aiThinking" then
+        state.aiThinkTimer = state.aiThinkTimer - dt
+
+        -- Lerp cue stick angle during think time
+        local elapsed = state.aiThinkDuration - state.aiThinkTimer
+        local progress = smoothstep(math.min(1, elapsed / state.aiThinkDuration))
+        state.aimAngle = lerpAngle(state.aiStartAngle, state.aiTargetAngle, progress)
+
+        if state.aiThinkTimer <= 0 then
+            -- Execute shot
+            state.aimAngle = state.aiTargetAngle
+            state.powerLevel = state.aiTargetPower
+            state.pottedThisTurn = {}
+            state.cueScratchedThisTurn = false
+            rules.shoot(state, config)
         end
         return
     end
@@ -204,6 +285,10 @@ function M.update(dt)
             if state.gamePhase == "turnOver" then
                 state.turnDelayTimer = config.TURN_DELAY
             end
+            -- If AI gets another turn, initialize AI thinking
+            if state.gamePhase == "aiThinking" then
+                startAIThinking()
+            end
         end
     end
 end
@@ -216,7 +301,7 @@ function M.mousepressed(_x, _y, button)
     if button ~= 1 then return end
 
     if state.gameResult then
-        startGame()
+        startMatch(state.opponent)
         return
     end
 
@@ -237,7 +322,7 @@ function M.keypressed(key)
     end
 
     if state.gameResult and key == "space" then
-        startGame()
+        startMatch(state.opponent)
     end
 end
 

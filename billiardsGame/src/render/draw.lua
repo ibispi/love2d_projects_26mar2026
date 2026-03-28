@@ -25,15 +25,19 @@ end
 local function drawPockets(state, config)
     local hr = config.HOLE_RADIUS * config.HOLE_DRAWN_RADIUS_MULTIPLIER
     for _, pocket in ipairs(state.pockets) do
-        -- Outer shadow ring
         love.graphics.setColor(0, 0, 0, 0.4)
         love.graphics.circle("fill", pocket.x, pocket.y, hr + 6)
-        -- Dark ring
         love.graphics.setColor(0.03, 0.03, 0.03)
         love.graphics.circle("fill", pocket.x, pocket.y, hr + 3)
-        -- Pocket hole
         love.graphics.setColor(config.COLOR_HOLE)
         love.graphics.circle("fill", pocket.x, pocket.y, hr)
+    end
+end
+
+local function getColorForBall(state, ballColor)
+    if ballColor == "blue" then return state.playerRenderColor
+    elseif ballColor == "red" then return state.opponentRenderColor
+    else return {0.05, 0.05, 0.05}
     end
 end
 
@@ -41,20 +45,16 @@ local function drawBall(state, config, ball, color)
     local r = config.BALL_RADIUS
     local x, y = ball.body:getPosition()
 
-    -- Shadow
     love.graphics.setColor(0, 0, 0, 0.25)
     love.graphics.circle("fill", x + 3, y + 3, r)
 
-    -- Main color
     love.graphics.setColor(color)
     love.graphics.circle("fill", x, y, r)
 
-    -- Outline
     love.graphics.setColor(config.COLOR_OUTLINE)
     love.graphics.setLineWidth(2)
     love.graphics.circle("line", x, y, r)
 
-    -- Shine
     love.graphics.setColor(1, 1, 1, 0.35)
     love.graphics.circle("fill", x - 5, y - 5, r * 0.35)
 end
@@ -63,25 +63,20 @@ local function drawBlackBall(state, config, ball)
     local r = config.BALL_RADIUS
     local x, y = ball.body:getPosition()
 
-    -- Shadow
     love.graphics.setColor(0, 0, 0, 0.25)
     love.graphics.circle("fill", x + 3, y + 3, r)
 
-    -- Main black
     love.graphics.setColor(config.COLOR_BLACK)
     love.graphics.circle("fill", x, y, r)
 
-    -- White dot in center to distinguish from pockets
     love.graphics.setColor(1, 1, 1)
     love.graphics.circle("fill", x, y, r * 0.6)
 
-    -- "8" text
     love.graphics.setColor(0, 0, 0)
     local font = love.graphics.getFont()
     local text = "8"
     love.graphics.print(text, x - font:getWidth(text) / 2, y - font:getHeight() / 2)
 
-    -- Outline
     love.graphics.setColor(config.COLOR_OUTLINE)
     love.graphics.setLineWidth(2)
     love.graphics.circle("line", x, y, r)
@@ -90,7 +85,6 @@ end
 local function drawAimLine(state, config)
     local cueBall = state.cueBall
     local bx, by = cueBall.body:getPosition()
-    -- Transform mouse to design coordinates
     local smx, smy = love.mouse.getPosition()
     local mx, my = screenToDesign(state, smx, smy)
 
@@ -171,13 +165,6 @@ local function drawPowerMeter(state, config)
     love.graphics.print(pctText, barX + barW / 2 - font:getWidth(pctText) / 2, barY + barH / 2 - font:getHeight() / 2)
 end
 
-local function getColorForBall(config, ballColor)
-    if ballColor == "red" then return config.COLOR_RED
-    elseif ballColor == "blue" then return config.COLOR_BLUE
-    else return config.COLOR_BLACK
-    end
-end
-
 local function drawUI(state, config)
     local font = love.graphics.getFont()
     local phase = state.gamePhase
@@ -193,40 +180,37 @@ local function drawUI(state, config)
     if state.currentPlayer == 1 then
         turnText = "YOUR TURN"
     else
-        turnText = "OPPONENT'S TURN"
+        turnText = string.format("%s'S TURN", string.upper(state.opponent.name))
     end
     love.graphics.print(turnText, 30, 18)
 
-    -- Ball counts
-    local redCount = rules.countBallsByColor(state, "red")
-    local blueCount = rules.countBallsByColor(state, "blue")
+    -- Opponent name
+    local vsText = string.format("VS %s", state.opponent.name)
+    love.graphics.setColor(state.opponentRenderColor)
+    love.graphics.print(vsText, config.DESIGN_W / 2 - font:getWidth(vsText) / 2, 18)
 
-    -- Red count with colored indicator
+    -- Ball counts with colored indicators (using render colors)
+    love.graphics.setColor(config.COLOR_UI_TEXT)
+    local playerCount = rules.countBallsByColor(state, "blue")
+    local opponentCount = rules.countBallsByColor(state, "red")
+
+    -- Player ball count
     local countX = 300
-    love.graphics.setColor(config.COLOR_RED)
+    love.graphics.setColor(state.playerRenderColor)
     love.graphics.circle("fill", countX, 30, 12)
     love.graphics.setColor(config.COLOR_OUTLINE)
     love.graphics.circle("line", countX, 30, 12)
     love.graphics.setColor(config.COLOR_UI_TEXT)
-    love.graphics.print(string.format(": %d", redCount), countX + 18, 18)
+    love.graphics.print(string.format(": %d", playerCount), countX + 18, 18)
 
-    -- Blue count with colored indicator
+    -- Opponent ball count
     countX = 435
-    love.graphics.setColor(config.COLOR_BLUE)
+    love.graphics.setColor(state.opponentRenderColor)
     love.graphics.circle("fill", countX, 30, 12)
     love.graphics.setColor(config.COLOR_OUTLINE)
     love.graphics.circle("line", countX, 30, 12)
     love.graphics.setColor(config.COLOR_UI_TEXT)
-    love.graphics.print(string.format(": %d", blueCount), countX + 18, 18)
-
-    -- Player color assignment
-    local assignText
-    if state.playerColor then
-        assignText = string.format("You: %s", string.upper(state.playerColor))
-    else
-        assignText = "Color: not assigned"
-    end
-    love.graphics.print(assignText, 570, 18)
+    love.graphics.print(string.format(": %d", opponentCount), countX + 18, 18)
 
     -- Phase indicator
     local phaseText = ""
@@ -237,11 +221,9 @@ local function drawUI(state, config)
     elseif phase == "moving" then
         phaseText = "..."
     elseif phase == "turnOver" then
-        if state.currentPlayer == 1 then
-            phaseText = "Switching turns..."
-        else
-            phaseText = "Opponent is thinking..."
-        end
+        phaseText = "Switching turns..."
+    elseif phase == "aiThinking" then
+        phaseText = string.format("%s is thinking...", state.opponent.name)
     end
     love.graphics.setColor(config.COLOR_UI_TEXT)
     love.graphics.print(phaseText, config.DESIGN_W - font:getWidth(phaseText) - 30, 18)
@@ -256,7 +238,7 @@ local function drawUI(state, config)
         if state.gameResult == "win" then
             msg = "YOU WIN!"
         else
-            msg = "YOU LOSE!"
+            msg = string.format("%s WINS!", string.upper(state.opponent.name))
         end
         msg2 = "Click or press SPACE to restart"
         love.graphics.print(msg, config.DESIGN_W / 2 - font:getWidth(msg) / 2, config.DESIGN_H / 2 - 45)
@@ -265,15 +247,12 @@ local function drawUI(state, config)
 end
 
 function M.draw(state, config)
-    -- Clear with black (letterbox color)
     love.graphics.clear(0, 0, 0)
 
-    -- Apply scaling transform: scale by height, center horizontally
     love.graphics.push()
     love.graphics.translate(state.offsetX, state.offsetY)
     love.graphics.scale(state.scale, state.scale)
 
-    -- Background fill in design coordinates
     love.graphics.setColor(config.COLOR_BG)
     love.graphics.rectangle("fill", 0, 0, config.DESIGN_W, config.DESIGN_H)
 
@@ -286,7 +265,7 @@ function M.draw(state, config)
             if ball.ballColor == "black" then
                 drawBlackBall(state, config, ball)
             else
-                drawBall(state, config, ball, getColorForBall(config, ball.ballColor))
+                drawBall(state, config, ball, getColorForBall(state, ball.ballColor))
             end
         end
     end
@@ -297,7 +276,7 @@ function M.draw(state, config)
         drawBall(state, config, cueBall, config.COLOR_WHITE)
     end
 
-    -- Aim and cue stick
+    -- Aim line and cue stick
     local phase = state.gamePhase
     if phase == "aim" and cueBall and not cueBall.pocketed then
         drawAimLine(state, config)
@@ -309,6 +288,11 @@ function M.draw(state, config)
         if cueBall and not cueBall.pocketed then
             drawCueStick(state, config)
         end
+    end
+
+    -- AI thinking: show cue stick animating to position
+    if phase == "aiThinking" and cueBall and not cueBall.pocketed then
+        drawCueStick(state, config)
     end
 
     drawUI(state, config)

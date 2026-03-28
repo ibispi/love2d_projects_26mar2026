@@ -18,6 +18,10 @@ return {
     MAX_SHOT_IMPULSE = 2700,
     TURN_DELAY = 1.0,
     CENTER_POCKET_INSET = -8,
+    AI_AIM_DURATION = 0.5,
+
+    PLAYER_COLOR = {0.2, 0.4, 0.9},
+    COLOR_SIMILARITY_THRESHOLD = 0.35,
 
     COLOR_BG = {0.95, 0.85, 0.2},
     COLOR_TABLE = {0.1, 0.55, 0.15},
