@@ -75,9 +75,12 @@ function M.applyPocketGravity(state, config, dt)
             local dy = pocket.y - by
             local dist = math.sqrt(dx * dx + dy * dy)
             if dist > threshold and dist < gravRadius then
+                -- How deep into the gravity zone (0 at edge, 1 at threshold)
                 local t = 1 - (dist - threshold) / (gravRadius - threshold)
-                local force = gravStrength * t * body:getMass()
-                body:applyForce(dx / dist * force, dy / dist * force)
+                -- Set velocity directly toward pocket, killing any lateral motion
+                local speed = gravStrength * t
+                body:setLinearVelocity(dx / dist * speed, dy / dist * speed)
+                return -- only one pocket can capture at a time
             end
         end
     end
