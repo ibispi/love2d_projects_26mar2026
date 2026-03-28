@@ -66,7 +66,7 @@ local function drawBlackBall(state, config, ball)
 
     -- White dot in center to distinguish from pockets
     love.graphics.setColor(1, 1, 1)
-    love.graphics.circle("fill", x, y, r * 0.35)
+    love.graphics.circle("fill", x, y, r * 0.6)
 
     -- "8" text
     love.graphics.setColor(0, 0, 0)
