@@ -1,0 +1,20 @@
+pool game notes:
+
+- interactions with balls at the edges of board are not good; the ball seems to stick to the edges of the board no matter what until it reaches the corner of the board
+
+pool game todo:
+
+- make ai for pool game; so you play vs ai
+- change pool game to resemble more of a regular pool game; but with possible adjustments for each character (e.g. playing against the sorceress creates portals on the pool board)
+
+whole game todo:
+- make a separate visual novel engine within the pool game
+
+- move version control to a private server (possibly use n8n.flowtinkr server for vc?) because of nsfw stuff
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The game: A billiards visual novel with NSFW content. Light-hearted anime style. 8 characters spanning fantasy, sci-fi, and regular archetypes. Each character has a storyline that progresses through billiards matches against them, with story scenes between rounds.
+Core gameplay: Simplified pool — each player has colored balls, pot yours before the opponent pots theirs, pot one and you go again, miss and it's their turn. No fouls, no complex rules. Each character adds unique table modifiers (portals, bumpers, gravity, etc.) and has their own AI play style.
+Tech stack: Love2D for everything — billiards physics and visual novel dialogue system in one engine. Stable Diffusion with LoRAs for character art and NSFW CGs. Midjourney for backgrounds. Code on GitHub, art assets on your n8n droplet.
+Timeline: Steam page up in ~2 months, full release in 6-8 months. Extended runway through cheaper food (eat properly though).
