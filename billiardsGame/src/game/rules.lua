@@ -68,15 +68,15 @@ function M.applyPocketGravity(state, config, dt)
 
     local threshold = config.HOLE_RADIUS * 0.7
 
-    local function pullBall(body)
+    local function pullBall(body, radius)
         for _, pocket in ipairs(state.pockets) do
             local bx, by = body:getPosition()
             local dx = pocket.x - bx
             local dy = pocket.y - by
             local dist = math.sqrt(dx * dx + dy * dy)
-            if dist > threshold and dist < gravRadius then
+            if dist > threshold and dist < radius then
                 -- How deep into the gravity zone (0 at edge, 1 at threshold)
-                local t = 1 - (dist - threshold) / (gravRadius - threshold)
+                local t = 1 - (dist - threshold) / (radius - threshold)
                 -- Set velocity directly toward pocket, killing any lateral motion
                 local speed = gravStrength * t
                 body:setLinearVelocity(dx / dist * speed, dy / dist * speed)
@@ -85,7 +85,13 @@ function M.applyPocketGravity(state, config, dt)
         end
     end
 
-    -- No gravity on the cue ball
+    -- Cue ball uses its own smaller gravity radius
+    local cueBall = state.cueBall
+    local cueGravRadius = config.CUE_BALL_GRAVITY_RADIUS
+    if cueBall and not cueBall.pocketed and cueGravRadius > 0 then
+        pullBall(cueBall.body, cueGravRadius)
+    end
+
     for _, ball in ipairs(state.balls) do
         if not ball.pocketed then
             if ball.ballColor == "black" then
@@ -97,10 +103,10 @@ function M.applyPocketGravity(state, config, dt)
                     myColor = state.opponentColor
                 end
                 if myColor and M.countBallsByColor(state, myColor) == 0 then
-                    pullBall(ball.body)
+                    pullBall(ball.body, gravRadius)
                 end
             else
-                pullBall(ball.body)
+                pullBall(ball.body, gravRadius)
             end
         end
     end
