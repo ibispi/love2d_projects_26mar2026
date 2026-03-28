@@ -26,6 +26,10 @@ local state = {
     pottedThisTurn = {}, -- colors of balls potted during current shot
     cueScratchedThisTurn = false,
     turnDelayTimer = 0,
+    -- Scaling state (computed each frame)
+    scale = 1,
+    offsetX = 0,
+    offsetY = 0,
 }
 
 local function computeTableBounds()
@@ -33,10 +37,25 @@ local function computeTableBounds()
     local rt = config.RAIL_THICKNESS
     state.tableLeft = pad + rt
     state.tableTop = pad + rt
-    state.tableRight = config.WINDOW_W - pad - rt
-    state.tableBottom = config.WINDOW_H - pad - rt
+    state.tableRight = config.DESIGN_W - pad - rt
+    state.tableBottom = config.DESIGN_H - pad - rt
     state.tableW = state.tableRight - state.tableLeft
     state.tableH = state.tableBottom - state.tableTop
+end
+
+local function updateScale()
+    local winW, winH = love.graphics.getDimensions()
+    local s = winH / config.DESIGN_H
+    state.scale = s
+    state.offsetX = (winW - config.DESIGN_W * s) / 2
+    state.offsetY = 0
+end
+
+-- Convert screen mouse coordinates to design coordinates
+local function screenToDesign(sx, sy)
+    local dx = (sx - state.offsetX) / state.scale
+    local dy = (sy - state.offsetY) / state.scale
+    return dx, dy
 end
 
 local function createPockets()
@@ -124,14 +143,17 @@ local M = {}
 
 function M.load()
     love.window.setTitle("Billiards")
-    love.window.setMode(config.WINDOW_W, config.WINDOW_H, {resizable = false})
-    love.graphics.setBackgroundColor(config.COLOR_BG)
+    love.window.setMode(config.DESIGN_W, config.DESIGN_H, {resizable = true})
+    love.graphics.setBackgroundColor(0, 0, 0)
 
     computeTableBounds()
+    updateScale()
     startGame()
 end
 
 function M.update(dt)
+    updateScale()
+
     if state.gameResult then return end
 
     if state.gamePhase == "turnOver" then
@@ -155,7 +177,8 @@ function M.update(dt)
 
     local cueBall = state.cueBall
     if state.gamePhase == "aim" and cueBall and not cueBall.pocketed then
-        local mx, my = love.mouse.getPosition()
+        local smx, smy = love.mouse.getPosition()
+        local mx, my = screenToDesign(smx, smy)
         local bx, by = cueBall.body:getPosition()
         state.aimAngle = math.atan2(my - by, mx - bx)
     end

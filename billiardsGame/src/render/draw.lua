@@ -2,11 +2,18 @@ local rules = require("src.game.rules")
 
 local M = {}
 
+-- Convert screen mouse coordinates to design coordinates
+local function screenToDesign(state, sx, sy)
+    local dx = (sx - state.offsetX) / state.scale
+    local dy = (sy - state.offsetY) / state.scale
+    return dx, dy
+end
+
 local function drawTable(state, config)
     love.graphics.setColor(config.COLOR_RAIL)
     love.graphics.rectangle("fill",
         config.TABLE_PADDING, config.TABLE_PADDING,
-        config.WINDOW_W - config.TABLE_PADDING * 2, config.WINDOW_H - config.TABLE_PADDING * 2,
+        config.DESIGN_W - config.TABLE_PADDING * 2, config.DESIGN_H - config.TABLE_PADDING * 2,
         8, 8)
 
     love.graphics.setColor(config.COLOR_TABLE)
@@ -83,7 +90,9 @@ end
 local function drawAimLine(state, config)
     local cueBall = state.cueBall
     local bx, by = cueBall.body:getPosition()
-    local mx, my = love.mouse.getPosition()
+    -- Transform mouse to design coordinates
+    local smx, smy = love.mouse.getPosition()
+    local mx, my = screenToDesign(state, smx, smy)
 
     local dx = mx - bx
     local dy = my - by
@@ -137,8 +146,8 @@ end
 local function drawPowerMeter(state, config)
     local barW = 300
     local barH = 30
-    local barX = (config.WINDOW_W - barW) / 2
-    local barY = config.WINDOW_H - 60
+    local barX = (config.DESIGN_W - barW) / 2
+    local barY = config.DESIGN_H - 60
 
     love.graphics.setColor(config.COLOR_POWER_BG)
     love.graphics.rectangle("fill", barX, barY, barW, barH, 6, 6)
@@ -175,7 +184,7 @@ local function drawUI(state, config)
 
     -- Top bar background
     love.graphics.setColor(config.COLOR_UI_BG)
-    love.graphics.rectangle("fill", 0, 0, config.WINDOW_W, 40, 0, 0)
+    love.graphics.rectangle("fill", 0, 0, config.DESIGN_W, 40, 0, 0)
 
     love.graphics.setColor(config.COLOR_UI_TEXT)
 
@@ -235,12 +244,12 @@ local function drawUI(state, config)
         end
     end
     love.graphics.setColor(config.COLOR_UI_TEXT)
-    love.graphics.print(phaseText, config.WINDOW_W - font:getWidth(phaseText) - 20, 12)
+    love.graphics.print(phaseText, config.DESIGN_W - font:getWidth(phaseText) - 20, 12)
 
     -- Game over overlay
     if state.gameResult then
         love.graphics.setColor(0, 0, 0, 0.7)
-        love.graphics.rectangle("fill", 0, 0, config.WINDOW_W, config.WINDOW_H)
+        love.graphics.rectangle("fill", 0, 0, config.DESIGN_W, config.DESIGN_H)
 
         love.graphics.setColor(1, 1, 1)
         local msg, msg2
@@ -250,14 +259,23 @@ local function drawUI(state, config)
             msg = "YOU LOSE!"
         end
         msg2 = "Click or press SPACE to restart"
-        love.graphics.print(msg, config.WINDOW_W / 2 - font:getWidth(msg) / 2, config.WINDOW_H / 2 - 30)
-        love.graphics.print(msg2, config.WINDOW_W / 2 - font:getWidth(msg2) / 2, config.WINDOW_H / 2 + 20)
+        love.graphics.print(msg, config.DESIGN_W / 2 - font:getWidth(msg) / 2, config.DESIGN_H / 2 - 30)
+        love.graphics.print(msg2, config.DESIGN_W / 2 - font:getWidth(msg2) / 2, config.DESIGN_H / 2 + 20)
     end
 end
 
 function M.draw(state, config)
+    -- Clear with black (letterbox color)
+    love.graphics.clear(0, 0, 0)
+
+    -- Apply scaling transform: scale by height, center horizontally
+    love.graphics.push()
+    love.graphics.translate(state.offsetX, state.offsetY)
+    love.graphics.scale(state.scale, state.scale)
+
+    -- Background fill in design coordinates
     love.graphics.setColor(config.COLOR_BG)
-    love.graphics.rectangle("fill", 0, 0, config.WINDOW_W, config.WINDOW_H)
+    love.graphics.rectangle("fill", 0, 0, config.DESIGN_W, config.DESIGN_H)
 
     drawTable(state, config)
     drawPockets(state, config)
@@ -294,6 +312,8 @@ function M.draw(state, config)
     end
 
     drawUI(state, config)
+
+    love.graphics.pop()
 end
 
 return M

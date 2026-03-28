@@ -1,6 +1,7 @@
 return {
-    WINDOW_W = 1280,
-    WINDOW_H = 720,
+    -- Design resolution: all game logic and layout is authored at this size
+    DESIGN_W = 1280,
+    DESIGN_H = 720,
     TABLE_PADDING = 80,
     RAIL_THICKNESS = 18,
     BALL_RADIUS = 12,
@@ -14,7 +15,7 @@ return {
     POWER_OSCILLATE_SPEED = 1.5,
     MAX_SHOT_IMPULSE = 800,
     TURN_DELAY = 1.0,
-    CENTER_POCKET_INSET = -10,
+    CENTER_POCKET_INSET = -5,
 
     COLOR_BG = {0.95, 0.85, 0.2},
     COLOR_TABLE = {0.1, 0.55, 0.15},
