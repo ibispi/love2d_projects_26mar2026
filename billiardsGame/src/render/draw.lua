@@ -14,7 +14,7 @@ local function drawTable(state, config)
     love.graphics.rectangle("fill",
         config.TABLE_PADDING, config.TABLE_PADDING,
         config.DESIGN_W - config.TABLE_PADDING * 2, config.DESIGN_H - config.TABLE_PADDING * 2,
-        8, 8)
+        12, 12)
 
     love.graphics.setColor(config.COLOR_TABLE)
     love.graphics.rectangle("fill",
@@ -23,14 +23,14 @@ local function drawTable(state, config)
 end
 
 local function drawPockets(state, config)
-    local hr = config.HOLE_RADIUS*config.HOLE_DRAWN_RADIUS_MULTIPLIER
+    local hr = config.HOLE_RADIUS * config.HOLE_DRAWN_RADIUS_MULTIPLIER
     for _, pocket in ipairs(state.pockets) do
         -- Outer shadow ring
         love.graphics.setColor(0, 0, 0, 0.4)
-        love.graphics.circle("fill", pocket.x, pocket.y, hr + 4)
+        love.graphics.circle("fill", pocket.x, pocket.y, hr + 6)
         -- Dark ring
         love.graphics.setColor(0.03, 0.03, 0.03)
-        love.graphics.circle("fill", pocket.x, pocket.y, hr + 2)
+        love.graphics.circle("fill", pocket.x, pocket.y, hr + 3)
         -- Pocket hole
         love.graphics.setColor(config.COLOR_HOLE)
         love.graphics.circle("fill", pocket.x, pocket.y, hr)
@@ -43,7 +43,7 @@ local function drawBall(state, config, ball, color)
 
     -- Shadow
     love.graphics.setColor(0, 0, 0, 0.25)
-    love.graphics.circle("fill", x + 2, y + 2, r)
+    love.graphics.circle("fill", x + 3, y + 3, r)
 
     -- Main color
     love.graphics.setColor(color)
@@ -51,12 +51,12 @@ local function drawBall(state, config, ball, color)
 
     -- Outline
     love.graphics.setColor(config.COLOR_OUTLINE)
-    love.graphics.setLineWidth(1.5)
+    love.graphics.setLineWidth(2)
     love.graphics.circle("line", x, y, r)
 
     -- Shine
     love.graphics.setColor(1, 1, 1, 0.35)
-    love.graphics.circle("fill", x - 3, y - 3, r * 0.35)
+    love.graphics.circle("fill", x - 5, y - 5, r * 0.35)
 end
 
 local function drawBlackBall(state, config, ball)
@@ -65,7 +65,7 @@ local function drawBlackBall(state, config, ball)
 
     -- Shadow
     love.graphics.setColor(0, 0, 0, 0.25)
-    love.graphics.circle("fill", x + 2, y + 2, r)
+    love.graphics.circle("fill", x + 3, y + 3, r)
 
     -- Main black
     love.graphics.setColor(config.COLOR_BLACK)
@@ -83,7 +83,7 @@ local function drawBlackBall(state, config, ball)
 
     -- Outline
     love.graphics.setColor(config.COLOR_OUTLINE)
-    love.graphics.setLineWidth(1.5)
+    love.graphics.setLineWidth(2)
     love.graphics.circle("line", x, y, r)
 end
 
@@ -101,12 +101,12 @@ local function drawAimLine(state, config)
     dx, dy = dx / len, dy / len
 
     love.graphics.setColor(config.COLOR_AIM)
-    love.graphics.setLineWidth(1.5)
-    local dotSpacing = 12
-    local dotLength = 6
+    love.graphics.setLineWidth(2)
+    local dotSpacing = 18
+    local dotLength = 9
     local br = config.BALL_RADIUS
     for i = 0, 25 do
-        local startDist = br + 10 + i * dotSpacing
+        local startDist = br + 15 + i * dotSpacing
         local endDist = startDist + dotLength
         love.graphics.line(
             bx + dx * startDist, by + dy * startDist,
@@ -121,15 +121,15 @@ local function drawCueStick(state, config)
     local oppositeAngle = state.aimAngle + math.pi
 
     local br = config.BALL_RADIUS
-    local cueGap = br + 6
+    local cueGap = br + 9
     local startX = bx + math.cos(oppositeAngle) * cueGap
     local startY = by + math.sin(oppositeAngle) * cueGap
     local endX = bx + math.cos(oppositeAngle) * (cueGap + config.CUE_LENGTH)
     local endY = by + math.sin(oppositeAngle) * (cueGap + config.CUE_LENGTH)
 
     love.graphics.setColor(0, 0, 0, 0.2)
-    love.graphics.setLineWidth(config.CUE_WIDTH + 2)
-    love.graphics.line(startX + 2, startY + 2, endX + 2, endY + 2)
+    love.graphics.setLineWidth(config.CUE_WIDTH + 3)
+    love.graphics.line(startX + 3, startY + 3, endX + 3, endY + 3)
 
     love.graphics.setColor(config.COLOR_CUE)
     love.graphics.setLineWidth(config.CUE_WIDTH)
@@ -137,20 +137,20 @@ local function drawCueStick(state, config)
 
     love.graphics.setColor(0.9, 0.85, 0.7)
     love.graphics.setLineWidth(config.CUE_WIDTH)
-    local tipLen = 15
+    local tipLen = 22
     local tipEndX = startX + math.cos(oppositeAngle) * tipLen
     local tipEndY = startY + math.sin(oppositeAngle) * tipLen
     love.graphics.line(startX, startY, tipEndX, tipEndY)
 end
 
 local function drawPowerMeter(state, config)
-    local barW = 300
-    local barH = 30
+    local barW = 450
+    local barH = 45
     local barX = (config.DESIGN_W - barW) / 2
-    local barY = config.DESIGN_H - 60
+    local barY = config.DESIGN_H - 90
 
     love.graphics.setColor(config.COLOR_POWER_BG)
-    love.graphics.rectangle("fill", barX, barY, barW, barH, 6, 6)
+    love.graphics.rectangle("fill", barX, barY, barW, barH, 9, 9)
 
     local pl = state.powerLevel
     local fillColor = {
@@ -159,11 +159,11 @@ local function drawPowerMeter(state, config)
         config.COLOR_POWER_FILL[3] + (config.COLOR_POWER_HIGH[3] - config.COLOR_POWER_FILL[3]) * pl,
     }
     love.graphics.setColor(fillColor)
-    love.graphics.rectangle("fill", barX + 3, barY + 3, (barW - 6) * pl, barH - 6, 4, 4)
+    love.graphics.rectangle("fill", barX + 5, barY + 5, (barW - 10) * pl, barH - 10, 6, 6)
 
     love.graphics.setColor(1, 1, 1, 0.8)
-    love.graphics.setLineWidth(2)
-    love.graphics.rectangle("line", barX, barY, barW, barH, 6, 6)
+    love.graphics.setLineWidth(3)
+    love.graphics.rectangle("line", barX, barY, barW, barH, 9, 9)
 
     love.graphics.setColor(config.COLOR_UI_TEXT)
     local pctText = string.format("%d%%", math.floor(pl * 100))
@@ -184,7 +184,7 @@ local function drawUI(state, config)
 
     -- Top bar background
     love.graphics.setColor(config.COLOR_UI_BG)
-    love.graphics.rectangle("fill", 0, 0, config.DESIGN_W, 40, 0, 0)
+    love.graphics.rectangle("fill", 0, 0, config.DESIGN_W, 60, 0, 0)
 
     love.graphics.setColor(config.COLOR_UI_TEXT)
 
@@ -195,29 +195,29 @@ local function drawUI(state, config)
     else
         turnText = "OPPONENT'S TURN"
     end
-    love.graphics.print(turnText, 20, 12)
+    love.graphics.print(turnText, 30, 18)
 
     -- Ball counts
     local redCount = rules.countBallsByColor(state, "red")
     local blueCount = rules.countBallsByColor(state, "blue")
 
     -- Red count with colored indicator
-    local countX = 200
+    local countX = 300
     love.graphics.setColor(config.COLOR_RED)
-    love.graphics.circle("fill", countX, 20, 8)
+    love.graphics.circle("fill", countX, 30, 12)
     love.graphics.setColor(config.COLOR_OUTLINE)
-    love.graphics.circle("line", countX, 20, 8)
+    love.graphics.circle("line", countX, 30, 12)
     love.graphics.setColor(config.COLOR_UI_TEXT)
-    love.graphics.print(string.format(": %d", redCount), countX + 12, 12)
+    love.graphics.print(string.format(": %d", redCount), countX + 18, 18)
 
     -- Blue count with colored indicator
-    countX = 290
+    countX = 435
     love.graphics.setColor(config.COLOR_BLUE)
-    love.graphics.circle("fill", countX, 20, 8)
+    love.graphics.circle("fill", countX, 30, 12)
     love.graphics.setColor(config.COLOR_OUTLINE)
-    love.graphics.circle("line", countX, 20, 8)
+    love.graphics.circle("line", countX, 30, 12)
     love.graphics.setColor(config.COLOR_UI_TEXT)
-    love.graphics.print(string.format(": %d", blueCount), countX + 12, 12)
+    love.graphics.print(string.format(": %d", blueCount), countX + 18, 18)
 
     -- Player color assignment
     local assignText
@@ -226,7 +226,7 @@ local function drawUI(state, config)
     else
         assignText = "Color: not assigned"
     end
-    love.graphics.print(assignText, 380, 12)
+    love.graphics.print(assignText, 570, 18)
 
     -- Phase indicator
     local phaseText = ""
@@ -244,7 +244,7 @@ local function drawUI(state, config)
         end
     end
     love.graphics.setColor(config.COLOR_UI_TEXT)
-    love.graphics.print(phaseText, config.DESIGN_W - font:getWidth(phaseText) - 20, 12)
+    love.graphics.print(phaseText, config.DESIGN_W - font:getWidth(phaseText) - 30, 18)
 
     -- Game over overlay
     if state.gameResult then
@@ -259,8 +259,8 @@ local function drawUI(state, config)
             msg = "YOU LOSE!"
         end
         msg2 = "Click or press SPACE to restart"
-        love.graphics.print(msg, config.DESIGN_W / 2 - font:getWidth(msg) / 2, config.DESIGN_H / 2 - 30)
-        love.graphics.print(msg2, config.DESIGN_W / 2 - font:getWidth(msg2) / 2, config.DESIGN_H / 2 + 20)
+        love.graphics.print(msg, config.DESIGN_W / 2 - font:getWidth(msg) / 2, config.DESIGN_H / 2 - 45)
+        love.graphics.print(msg2, config.DESIGN_W / 2 - font:getWidth(msg2) / 2, config.DESIGN_H / 2 + 30)
     end
 end
 
