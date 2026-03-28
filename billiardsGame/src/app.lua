@@ -3,7 +3,7 @@ local physics = require("src.physics.table")
 local rules = require("src.game.rules")
 local ai = require("src.game.ai")
 local render = require("src.render.draw")
-local allOpponents = require("src.opponents")
+local allOpponents = require("content.scripts.opponents")
 
 local state = {
     world = nil,
