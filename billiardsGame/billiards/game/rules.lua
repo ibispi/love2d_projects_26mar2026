@@ -112,16 +112,19 @@ function M.applyPocketGravity(state, config, dt)
     end
 end
 
--- Check if a ball is inside any pocket's gravity zone
-local function isInPocketGravity(state, config, body)
-    local gravRadius = config.POCKET_GRAVITY_RADIUS
-    if not gravRadius or gravRadius <= 0 then return false end
+-- Check if a ball is inside the pocketing zone (close enough that it will
+-- definitely be pocketed on the next checkPocketing pass). We don't want
+-- to call the turn "at rest" while a ball is about to drop in.
+local function isAboutToBePocketed(state, config, body)
+    local pocketThreshold = config.HOLE_RADIUS * 0.7
+    -- Use a slightly larger zone so we catch balls on the way in
+    local checkRadius = pocketThreshold * 1.5
     local bx, by = body:getPosition()
     for _, pocket in ipairs(state.pockets) do
         local dx = pocket.x - bx
         local dy = pocket.y - by
         local dist = math.sqrt(dx * dx + dy * dy)
-        if dist < gravRadius then
+        if dist < checkRadius then
             return true
         end
     end
@@ -132,14 +135,14 @@ function M.allBallsAtRest(state, config)
     local threshold = config.REST_THRESHOLD
     local cueBall = state.cueBall
     if cueBall and not cueBall.pocketed then
-        -- A ball being pulled into a pocket by gravity is NOT at rest
-        if isInPocketGravity(state, config, cueBall.body) then return false end
+        -- Don't end the turn while a ball is about to drop into a pocket
+        if isAboutToBePocketed(state, config, cueBall.body) then return false end
         local vx, vy = cueBall.body:getLinearVelocity()
         if math.sqrt(vx * vx + vy * vy) > threshold then return false end
     end
     for _, ball in ipairs(state.balls) do
         if not ball.pocketed then
-            if isInPocketGravity(state, config, ball.body) then return false end
+            if isAboutToBePocketed(state, config, ball.body) then return false end
             local vx, vy = ball.body:getLinearVelocity()
             if math.sqrt(vx * vx + vy * vy) > threshold then return false end
         end
