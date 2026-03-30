@@ -9,10 +9,8 @@ local allOpponents = require("content.scripts.opponents")
 
 local gameState = "menu" -- "menu", "dialogue", "billiards"
 
--- Story progression: list of script files to play through
-local storySequence = {
-    "content.scripts.test_scene",
-}
+-- Story progression: loaded from content/scripts/story.lua
+local storySequence = require("content.scripts.story")
 local storyIndex = 1
 local currentScript = nil
 local lastMatchResult = nil
