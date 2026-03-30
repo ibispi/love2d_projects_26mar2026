@@ -1,9 +1,8 @@
-local config = require("src.config")
-local physics = require("src.physics.table")
-local rules = require("src.game.rules")
-local ai = require("src.game.ai")
-local render = require("src.render.draw")
-local allOpponents = require("content.scripts.opponents")
+local config = require("billiards.config")
+local physics = require("billiards.physics.table")
+local rules = require("billiards.game.rules")
+local ai = require("billiards.game.ai")
+local render = require("billiards.render.draw")
 
 local state = {
     world = nil,
@@ -202,15 +201,16 @@ end
 
 local M = {}
 
-function M.load()
-    love.window.setTitle("Billiards")
-    love.window.setMode(config.DESIGN_W, config.DESIGN_H, {resizable = true})
-    love.graphics.setBackgroundColor(0, 0, 0)
+-- Callback fired when a match ends; set by the caller via M.onMatchEnd
+M.onMatchEnd = nil
 
+function M.load()
     computeTableBounds()
     updateScale()
-    -- Start match with default opponent (easy to swap)
-    startMatch(allOpponents.scarlett)
+end
+
+function M.start(opponent)
+    startMatch(opponent)
 end
 
 function M.update(dt)
@@ -301,7 +301,11 @@ function M.mousepressed(_x, _y, button)
     if button ~= 1 then return end
 
     if state.gameResult then
-        startMatch(state.opponent)
+        if M.onMatchEnd then
+            M.onMatchEnd(state.gameResult)
+        else
+            startMatch(state.opponent)
+        end
         return
     end
 
@@ -322,7 +326,11 @@ function M.keypressed(key)
     end
 
     if state.gameResult and key == "space" then
-        startMatch(state.opponent)
+        if M.onMatchEnd then
+            M.onMatchEnd(state.gameResult)
+        else
+            startMatch(state.opponent)
+        end
     end
 end
 

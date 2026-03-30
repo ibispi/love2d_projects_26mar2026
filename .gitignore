@@ -40,3 +40,7 @@ luac.out
 *.hex
 
 /billiardsGame/content/
+/billiardsGame/content/scripts/
+/billiardsGame/content/characterSprites/
+/billiardsGame/content/backgroundSprites/
+rclone-v1.73.3-windows-amd64

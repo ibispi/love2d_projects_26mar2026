@@ -1,4 +1,4 @@
-local rules = require("src.game.rules")
+local rules = require("billiards.game.rules")
 
 local M = {}
 
