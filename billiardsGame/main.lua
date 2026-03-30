@@ -15,12 +15,26 @@ local gameState = "menu" -- "menu", "dialogue", "billiards"
 local storySequence = {}
 local storyPlayed = {} -- [index] = true for consumed entries
 
+-- Deep-copy a table so we get a fresh set of defaults each time
+local function copyDefaults(t)
+    local copy = {}
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            copy[k] = copyDefaults(v)
+        else
+            copy[k] = v
+        end
+    end
+    return copy
+end
+
 -- Load (or reload) the story sequence fresh
 local function loadStory()
     package.loaded["content.scripts.story"] = nil
+    package.loaded["content.scripts.variables"] = nil
     storySequence = require("content.scripts.story")
     storyPlayed = {}
-    dialogue.variables = {}
+    dialogue.variables = copyDefaults(require("content.scripts.variables"))
 end
 
 -- Find the first story entry whose conditions match current variables.
