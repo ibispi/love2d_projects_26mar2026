@@ -81,7 +81,7 @@ local function getChoiceRects(choices, w, h)
     local btnH = 50
     local gap = 15
     local totalH = #choices * btnH + (#choices - 1) * gap
-    local startY = h * 0.4 - totalH / 2
+    local startY = h / 2 - totalH / 2
     local startX = w / 2 - btnW / 2
 
     local rects = {}
