@@ -39,8 +39,10 @@ luac.out
 *.x86_64
 *.hex
 
-/billiardsGame/content/
-/billiardsGame/content/scripts/
-/billiardsGame/content/characterSprites/
-/billiardsGame/content/backgroundSprites/
+/billiardsGame/content/*
+!/billiardsGame/content/scripts/
 rclone-v1.73.3-windows-amd64
+/rclone/README.html
+/rclone/README.txt
+/rclone/git-log.txt
+/rclone/rclone.1

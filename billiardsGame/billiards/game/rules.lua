@@ -112,15 +112,34 @@ function M.applyPocketGravity(state, config, dt)
     end
 end
 
+-- Check if a ball is inside any pocket's gravity zone
+local function isInPocketGravity(state, config, body)
+    local gravRadius = config.POCKET_GRAVITY_RADIUS
+    if not gravRadius or gravRadius <= 0 then return false end
+    local bx, by = body:getPosition()
+    for _, pocket in ipairs(state.pockets) do
+        local dx = pocket.x - bx
+        local dy = pocket.y - by
+        local dist = math.sqrt(dx * dx + dy * dy)
+        if dist < gravRadius then
+            return true
+        end
+    end
+    return false
+end
+
 function M.allBallsAtRest(state, config)
     local threshold = config.REST_THRESHOLD
     local cueBall = state.cueBall
     if cueBall and not cueBall.pocketed then
+        -- A ball being pulled into a pocket by gravity is NOT at rest
+        if isInPocketGravity(state, config, cueBall.body) then return false end
         local vx, vy = cueBall.body:getLinearVelocity()
         if math.sqrt(vx * vx + vy * vy) > threshold then return false end
     end
     for _, ball in ipairs(state.balls) do
         if not ball.pocketed then
+            if isInPocketGravity(state, config, ball.body) then return false end
             local vx, vy = ball.body:getLinearVelocity()
             if math.sqrt(vx * vx + vy * vy) > threshold then return false end
         end
