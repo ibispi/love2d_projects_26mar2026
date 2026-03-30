@@ -3,8 +3,12 @@ local characters = require("visualnovel.characters")
 
 local M = {}
 
--- Callback set by main.lua
+-- Callbacks set by main.lua
 M.onStartMatch = nil
+M.onScriptEnd = nil
+
+-- Story variables: shared state that persists across scripts
+M.variables = {}
 
 local state = {
     script = nil,        -- the loaded script table
@@ -88,6 +92,16 @@ local function processEvent()
                 state.index = state.index + 1
             end
 
+        elseif event.type == "set_var" then
+            M.variables[event.name] = event.value
+            state.index = state.index + 1
+
+        elseif event.type == "add_var" then
+            -- Increment (or decrement) a numeric variable by amount (default 1)
+            local current = M.variables[event.name] or 0
+            M.variables[event.name] = current + (event.amount or 1)
+            state.index = state.index + 1
+
         elseif event.type == "start_match" then
             if M.onStartMatch then
                 M.onStartMatch(event.opponent)
@@ -104,6 +118,9 @@ local function processEvent()
     -- End of script reached
     state.waitingForInput = false
     state.choices = nil
+    if M.onScriptEnd then
+        M.onScriptEnd()
+    end
 end
 
 function M.start(script)

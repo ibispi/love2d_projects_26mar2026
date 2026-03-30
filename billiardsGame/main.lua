@@ -10,16 +10,79 @@ local allOpponents = require("content.scripts.opponents")
 local gameState = "menu" -- "menu", "dialogue", "billiards"
 
 -- Story progression: loaded from content/scripts/story.lua
-local storySequence = require("content.scripts.story")
-local storyIndex = 1
-local currentScript = nil
-local lastMatchResult = nil
+-- Each entry: { script = "module.path", conditions = { var = value, ... } }
+-- Entries are consumed (marked played) once started.
+local storySequence = {}
+local storyPlayed = {} -- [index] = true for consumed entries
 
--- Forward declarations
-local function startDialogue(scriptModule)
-    currentScript = require(scriptModule)
-    dialogue.start(currentScript)
+-- Load (or reload) the story sequence fresh
+local function loadStory()
+    package.loaded["content.scripts.story"] = nil
+    storySequence = require("content.scripts.story")
+    storyPlayed = {}
+    dialogue.variables = {}
+end
+
+-- Find the first story entry whose conditions match current variables.
+-- Returns the index and entry, or nil if nothing available.
+-- Check a single condition value against a variable.
+-- Simple value: exact equality     e.g. conditions = { match_won = true }
+-- Comparison table: { op, value }  e.g. conditions = { wins = { ">=", 3 } }
+-- Supported ops: "==", "~=", ">", ">=", "<", "<="
+local function checkCondition(actual, expected)
+    if type(expected) == "table" then
+        local op, val = expected[1], expected[2]
+        actual = actual or 0 -- treat nil as 0 for numeric comparisons
+        if     op == "==" then return actual == val
+        elseif op == "~=" then return actual ~= val
+        elseif op == ">"  then return actual >  val
+        elseif op == ">=" then return actual >= val
+        elseif op == "<"  then return actual <  val
+        elseif op == "<=" then return actual <= val
+        end
+        return false
+    end
+    return actual == expected
+end
+
+local function findNextScript()
+    local vars = dialogue.variables
+    for i, entry in ipairs(storySequence) do
+        if not storyPlayed[i] then
+            local match = true
+            if entry.conditions then
+                for key, expected in pairs(entry.conditions) do
+                    if not checkCondition(vars[key], expected) then
+                        match = false
+                        break
+                    end
+                end
+            end
+            if match then
+                return i, entry
+            end
+        end
+    end
+    return nil, nil
+end
+
+-- Try to start the next available dialogue script. Returns true if one was found.
+local function tryStartNextDialogue()
+    local idx, entry = findNextScript()
+    if not idx then
+        return false
+    end
+    storyPlayed[idx] = true
+    -- Clear cached script module so it reloads fresh
+    package.loaded[entry.script] = nil
+    local script = require(entry.script)
+    dialogue.start(script)
     gameState = "dialogue"
+    return true
+end
+
+local function goToMenu()
+    gameState = "menu"
 end
 
 local function startBilliards(opponentKey)
@@ -31,22 +94,26 @@ local function startBilliards(opponentKey)
     gameState = "billiards"
 end
 
--- Dialogue system callback when it hits a "start_match" event
+-- Dialogue callback: script hit a "start_match" event
 dialogue.onStartMatch = function(opponentKey)
     startBilliards(opponentKey)
 end
 
--- Billiards callback when a match ends
+-- Dialogue callback: script reached the end (no more events)
+dialogue.onScriptEnd = function()
+    if not tryStartNextDialogue() then
+        goToMenu()
+    end
+end
+
+-- Billiards callback: match ended
 billiards.onMatchEnd = function(result)
-    lastMatchResult = result
-    -- Advance story
-    storyIndex = storyIndex + 1
-    if storyIndex <= #storySequence then
-        startDialogue(storySequence[storyIndex])
-    else
-        -- No more scripts, go back to menu
-        gameState = "menu"
-        storyIndex = 1
+    -- Set the match_won story variable
+    dialogue.variables.match_won = (result == "win")
+
+    -- Try to continue the story, otherwise go to menu
+    if not tryStartNextDialogue() then
+        goToMenu()
     end
 end
 
@@ -101,12 +168,10 @@ end
 function love.mousepressed(x, y, button)
     if gameState == "menu" then
         if button == 1 then
-            storyIndex = 1
-            -- Clear any cached scripts so they reload fresh
-            for _, mod in ipairs(storySequence) do
-                package.loaded[mod] = nil
+            loadStory()
+            if not tryStartNextDialogue() then
+                -- No scripts available, nothing to do
             end
-            startDialogue(storySequence[storyIndex])
         end
     elseif gameState == "billiards" then
         billiards.mousepressed(x, y, button)
@@ -114,7 +179,6 @@ function love.mousepressed(x, y, button)
         local w, h = love.graphics.getDimensions()
         local handled = vnui.mousepressed(x, y, button, dialogue.getState(), w, h)
         if handled then
-            -- Choice was clicked, tell dialogue system
             dialogue.selectChoice(handled)
         else
             if button == 1 then
@@ -133,11 +197,10 @@ function love.keypressed(key)
         end
     elseif gameState == "menu" then
         if key == "space" or key == "return" then
-            storyIndex = 1
-            for _, mod in ipairs(storySequence) do
-                package.loaded[mod] = nil
+            loadStory()
+            if not tryStartNextDialogue() then
+                -- No scripts available, nothing to do
             end
-            startDialogue(storySequence[storyIndex])
         end
     end
 
