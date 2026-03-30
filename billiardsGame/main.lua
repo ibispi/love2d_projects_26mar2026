@@ -5,13 +5,13 @@ local billiards = require("billiards.app")
 local dialogue = require("visualnovel.dialogue")
 local vnui = require("visualnovel.ui")
 local characters = require("visualnovel.characters")
-local allOpponents = require("scripts.opponents")
+local allOpponents = require("content.scripts.opponents")
 
 local gameState = "menu" -- "menu", "dialogue", "billiards"
 
 -- Story progression: list of script files to play through
 local storySequence = {
-    "scripts.test_scene",
+    "content.scripts.test_scene",
 }
 local storyIndex = 1
 local currentScript = nil
