@@ -131,27 +131,149 @@ billiards.onMatchEnd = function(result)
     end
 end
 
+-- Main menu
+local menuFont = nil
+local titleFont = nil
+
+local menuButtons = {
+    { label = "New Game",  enabled = true,  action = "new_game" },
+    { label = "Continue",  enabled = false, action = "continue" },
+    { label = "Options",   enabled = false, action = "options" },
+    { label = "Gallery",   enabled = false, action = "gallery" },
+    { label = "Quit",      enabled = true,  action = "quit" },
+}
+
+local menuSelectedIndex = 1 -- keyboard selection
+
+local function getMenuButtonRects(w, h)
+    local btnW = 320
+    local btnH = 54
+    local gap = 14
+    local count = #menuButtons
+    local totalH = count * btnH + (count - 1) * gap
+    local startY = h * 0.48
+    local startX = w / 2 - btnW / 2
+
+    local rects = {}
+    for i = 1, count do
+        rects[i] = {
+            x = startX,
+            y = startY + (i - 1) * (btnH + gap),
+            w = btnW,
+            h = btnH,
+        }
+    end
+    return rects
+end
+
+local function executeMenuAction(action)
+    if action == "new_game" then
+        loadStory()
+        tryStartNextDialogue()
+    elseif action == "quit" then
+        love.event.quit()
+    end
+end
+
+local function menuMousepressed(x, y, button)
+    if button ~= 1 then return end
+    local w, h = love.graphics.getDimensions()
+    local rects = getMenuButtonRects(w, h)
+    for i, r in ipairs(rects) do
+        if menuButtons[i].enabled then
+            if x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h then
+                executeMenuAction(menuButtons[i].action)
+                return
+            end
+        end
+    end
+end
+
+local function menuKeypressed(key)
+    if key == "up" then
+        repeat
+            menuSelectedIndex = menuSelectedIndex - 1
+            if menuSelectedIndex < 1 then menuSelectedIndex = #menuButtons end
+        until menuButtons[menuSelectedIndex].enabled
+    elseif key == "down" then
+        repeat
+            menuSelectedIndex = menuSelectedIndex + 1
+            if menuSelectedIndex > #menuButtons then menuSelectedIndex = 1 end
+        until menuButtons[menuSelectedIndex].enabled
+    elseif key == "return" or key == "space" then
+        executeMenuAction(menuButtons[menuSelectedIndex].action)
+    end
+end
+
 local function drawMenu()
     local w, h = love.graphics.getDimensions()
 
-    love.graphics.setColor(0.08, 0.08, 0.12)
+    -- Background
+    love.graphics.setColor(0.06, 0.06, 0.1)
     love.graphics.rectangle("fill", 0, 0, w, h)
 
-    local font = love.graphics.getFont()
-
+    -- Title
+    if titleFont then love.graphics.setFont(titleFont) end
     love.graphics.setColor(1, 1, 1)
     local title = "BILLIARDS"
-    love.graphics.print(title, w / 2 - font:getWidth(title) / 2, h * 0.35)
+    local tf = love.graphics.getFont()
+    love.graphics.print(title, w / 2 - tf:getWidth(title) / 2, h * 0.15)
 
-    love.graphics.setColor(0.7, 0.7, 0.7)
-    local sub = "Click or press SPACE to start"
-    love.graphics.print(sub, w / 2 - font:getWidth(sub) / 2, h * 0.45)
+    -- Subtitle
+    if menuFont then love.graphics.setFont(menuFont) end
+    love.graphics.setColor(0.5, 0.5, 0.6)
+    local sub = "A Pool Roguelike"
+    local mf = love.graphics.getFont()
+    love.graphics.print(sub, w / 2 - mf:getWidth(sub) / 2, h * 0.15 + tf:getHeight() + 10)
+
+    -- Buttons
+    local rects = getMenuButtonRects(w, h)
+    local mx, my = love.mouse.getPosition()
+
+    for i, btn in ipairs(menuButtons) do
+        local r = rects[i]
+        local hover = btn.enabled and mx >= r.x and mx <= r.x + r.w and my >= r.y and my <= r.y + r.h
+        local selected = (i == menuSelectedIndex)
+
+        if not btn.enabled then
+            -- Disabled button
+            love.graphics.setColor(0.12, 0.12, 0.18, 0.6)
+            love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 8, 8)
+            love.graphics.setColor(0.3, 0.3, 0.35, 0.6)
+            love.graphics.setLineWidth(1)
+            love.graphics.rectangle("line", r.x, r.y, r.w, r.h, 8, 8)
+            love.graphics.setColor(0.35, 0.35, 0.4)
+        elseif hover or selected then
+            -- Highlighted button
+            love.graphics.setColor(0.2, 0.25, 0.45, 0.9)
+            love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 8, 8)
+            love.graphics.setColor(0.7, 0.75, 1, 0.8)
+            love.graphics.setLineWidth(2)
+            love.graphics.rectangle("line", r.x, r.y, r.w, r.h, 8, 8)
+            love.graphics.setColor(1, 1, 1)
+        else
+            -- Normal button
+            love.graphics.setColor(0.12, 0.14, 0.22, 0.85)
+            love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 8, 8)
+            love.graphics.setColor(0.5, 0.5, 0.6, 0.5)
+            love.graphics.setLineWidth(1)
+            love.graphics.rectangle("line", r.x, r.y, r.w, r.h, 8, 8)
+            love.graphics.setColor(0.85, 0.85, 0.9)
+        end
+
+        if menuFont then love.graphics.setFont(menuFont) end
+        local f = love.graphics.getFont()
+        love.graphics.print(btn.label, r.x + r.w / 2 - f:getWidth(btn.label) / 2, r.y + r.h / 2 - f:getHeight() / 2)
+    end
 end
 
 function love.load()
     love.window.setTitle("Billiards")
     love.window.setMode(1920, 1080, {resizable = true})
     love.graphics.setBackgroundColor(0, 0, 0)
+
+    titleFont = love.graphics.newFont(64)
+    menuFont = love.graphics.newFont(28)
 
     billiards.load()
     vnui.load()
@@ -181,12 +303,7 @@ end
 
 function love.mousepressed(x, y, button)
     if gameState == "menu" then
-        if button == 1 then
-            loadStory()
-            if not tryStartNextDialogue() then
-                -- No scripts available, nothing to do
-            end
-        end
+        menuMousepressed(x, y, button)
     elseif gameState == "billiards" then
         billiards.mousepressed(x, y, button)
     elseif gameState == "dialogue" then
@@ -210,15 +327,14 @@ function love.keypressed(key)
             dialogue.advance()
         end
     elseif gameState == "menu" then
-        if key == "space" or key == "return" then
-            loadStory()
-            if not tryStartNextDialogue() then
-                -- No scripts available, nothing to do
-            end
-        end
+        menuKeypressed(key)
     end
 
     if key == "escape" then
-        love.event.quit()
+        if gameState == "menu" then
+            love.event.quit()
+        else
+            goToMenu()
+        end
     end
 end
