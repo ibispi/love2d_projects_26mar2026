@@ -1,5 +1,6 @@
 -- Dialogue system: reads script tables and drives progression
 local characters = require("visualnovel.characters")
+local save = require("lib.save")
 
 local M = {}
 
@@ -100,6 +101,10 @@ local function processEvent()
             -- Increment (or decrement) a numeric variable by amount (default 1)
             local current = M.variables[event.name] or 0
             M.variables[event.name] = current + (event.amount or 1)
+            state.index = state.index + 1
+
+        elseif event.type == "unlock_gallery" then
+            save.unlockGallery(event.index)
             state.index = state.index + 1
 
         elseif event.type == "start_match" then

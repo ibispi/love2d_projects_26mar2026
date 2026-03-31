@@ -5,9 +5,11 @@ local billiards = require("billiards.app")
 local dialogue = require("visualnovel.dialogue")
 local vnui = require("visualnovel.ui")
 local characters = require("visualnovel.characters")
+local gallery = require("visualnovel.gallery")
+local save = require("lib.save")
 local allOpponents = require("content.scripts.opponents")
 
-local gameState = "menu" -- "menu", "dialogue", "billiards"
+local gameState = "menu" -- "menu", "dialogue", "billiards", "gallery"
 
 -- Story progression: loaded from content/scripts/story.lua
 -- Each entry: { script = "module.path", conditions = { var = value, ... } }
@@ -139,7 +141,7 @@ local menuButtons = {
     { label = "New Game",  enabled = true,  action = "new_game" },
     { label = "Continue",  enabled = false, action = "continue" },
     { label = "Options",   enabled = false, action = "options" },
-    { label = "Gallery",   enabled = false, action = "gallery" },
+    { label = "Gallery",   enabled = true,  action = "gallery" },
     { label = "Quit",      enabled = true,  action = "quit" },
 }
 
@@ -170,6 +172,9 @@ local function executeMenuAction(action)
     if action == "new_game" then
         loadStory()
         tryStartNextDialogue()
+    elseif action == "gallery" then
+        gallery.reset()
+        gameState = "gallery"
     elseif action == "quit" then
         love.event.quit()
     end
@@ -275,8 +280,10 @@ function love.load()
     titleFont = love.graphics.newFont(64)
     menuFont = love.graphics.newFont(28)
 
+    save.load()
     billiards.load()
     vnui.load()
+    gallery.load()
 end
 
 function love.update(dt)
@@ -298,6 +305,9 @@ function love.draw()
         characters.drawBackground(w, h)
         characters.draw(w, h)
         vnui.draw(dialogue.getState(), w, h)
+    elseif gameState == "gallery" then
+        local w, h = love.graphics.getDimensions()
+        gallery.draw(w, h)
     end
 end
 
@@ -316,6 +326,12 @@ function love.mousepressed(x, y, button)
                 dialogue.advance()
             end
         end
+    elseif gameState == "gallery" then
+        local w, h = love.graphics.getDimensions()
+        local result = gallery.mousepressed(x, y, button, w, h)
+        if result == "back" then
+            goToMenu()
+        end
     end
 end
 
@@ -328,13 +344,20 @@ function love.keypressed(key)
         end
     elseif gameState == "menu" then
         menuKeypressed(key)
+    elseif gameState == "gallery" then
+        local result = gallery.keypressed(key)
+        if result == "back" then
+            goToMenu()
+            return -- don't propagate escape
+        end
     end
 
     if key == "escape" then
         if gameState == "menu" then
             love.event.quit()
-        else
+        elseif gameState ~= "gallery" then -- gallery handles its own escape
             goToMenu()
         end
     end
 end
+
