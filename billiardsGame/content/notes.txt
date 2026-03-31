@@ -1,7 +1,3 @@
-pool game notes:
-
-- interactions with balls at the edges of board are not good; the ball seems to stick to the edges of the board no matter what until it reaches the corner of the board
-
 pool game todo:
 
 - make ai for pool game; so you play vs ai
@@ -10,7 +6,6 @@ pool game todo:
 whole game todo:
 - make a separate visual novel engine within the pool game
 
-- move version control to a private server (possibly use n8n.flowtinkr server for vc?) because of nsfw stuff
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -18,3 +13,36 @@ The game: A billiards visual novel with NSFW content. Light-hearted anime style.
 Core gameplay: Simplified pool — each player has colored balls, pot yours before the opponent pots theirs, pot one and you go again, miss and it's their turn. No fouls, no complex rules. Each character adds unique table modifiers (portals, bumpers, gravity, etc.) and has their own AI play style.
 Tech stack: Love2D for everything — billiards physics and visual novel dialogue system in one engine. Stable Diffusion with LoRAs for character art and NSFW CGs. Midjourney for backgrounds. Code on GitHub, art assets on your n8n droplet.
 Timeline: Steam page up in ~2 months, full release in 6-8 months. Extended runway through cheaper food (eat properly though).
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+bugfixing:
+
+
+story todo:
+- come up with romanceable characters
+- come up with plot/setting
+
+- we can write just about all the game's dialogues and story before we do any art if we want...
+
+programming todo:
+
+- add saving/loading to the game
+- add localization/translation support
+
+- add main menu with settings
+
+- add gamepad controls and keyboard only controls; which are rebindable
+
+- add unique billiards mechanic per each romanceable character
+
+- at some point, all billiards renders should be replaced with sprites, and billiard background
+
+art todo:
+
+- setup loras for our art style
+- come up with and generate the 6 characters for the game
+- use controlnet to setup poses and expressions (if needed)
+
+- add unique background for billiards
