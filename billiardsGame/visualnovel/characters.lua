@@ -76,6 +76,18 @@ function M.setSpeaker(name)
     speakerName = name
 end
 
+-- Instantly set a character's opacity to its target (for replay/load)
+function M.snapOpacity(name)
+    if activeChars[name] then
+        activeChars[name].opacity = activeChars[name].targetOpacity
+    end
+end
+
+-- Instantly remove a character (for replay/load)
+function M.removeInstantly(name)
+    activeChars[name] = nil
+end
+
 function M.update(dt)
     local toRemove = {}
     for name, char in pairs(activeChars) do

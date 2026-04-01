@@ -1,15 +1,16 @@
 -- Main entry point — game state manager
--- States: menu, dialogue, billiards
+-- States: menu, dialogue, billiards, gallery, loadscreen
 
 local billiards = require("billiards.app")
 local dialogue = require("visualnovel.dialogue")
 local vnui = require("visualnovel.ui")
 local characters = require("visualnovel.characters")
 local gallery = require("visualnovel.gallery")
+local loadscreen = require("visualnovel.loadscreen")
 local save = require("lib.save")
 local allOpponents = require("content.scripts.opponents")
 
-local gameState = "menu" -- "menu", "dialogue", "billiards", "gallery"
+local gameState = "menu" -- "menu", "dialogue", "billiards", "gallery", "loadscreen"
 
 -- Story progression: loaded from content/scripts/story.lua
 -- Each entry: { script = "module.path", conditions = { var = value, ... } }
@@ -39,16 +40,11 @@ local function loadStory()
     dialogue.variables = copyDefaults(require("content.scripts.variables"))
 end
 
--- Find the first story entry whose conditions match current variables.
--- Returns the index and entry, or nil if nothing available.
 -- Check a single condition value against a variable.
--- Simple value: exact equality     e.g. conditions = { match_won = true }
--- Comparison table: { op, value }  e.g. conditions = { wins = { ">=", 3 } }
--- Supported ops: "==", "~=", ">", ">=", "<", "<="
 local function checkCondition(actual, expected)
     if type(expected) == "table" then
         local op, val = expected[1], expected[2]
-        actual = actual or 0 -- treat nil as 0 for numeric comparisons
+        actual = actual or 0
         if     op == "==" then return actual == val
         elseif op == "~=" then return actual ~= val
         elseif op == ">"  then return actual >  val
@@ -89,16 +85,16 @@ local function tryStartNextDialogue()
         return false
     end
     storyPlayed[idx] = true
-    -- Clear cached script module so it reloads fresh
     package.loaded[entry.script] = nil
     local script = require(entry.script)
-    dialogue.start(script)
+    dialogue.start(script, entry.script)
     gameState = "dialogue"
     return true
 end
 
 local function goToMenu()
     gameState = "menu"
+    updateContinueButton()
 end
 
 local function startBilliards(opponentKey)
@@ -108,6 +104,34 @@ local function startBilliards(opponentKey)
     end
     billiards.start(opponent)
     gameState = "billiards"
+end
+
+-- Load a checkpoint by index
+local function loadCheckpoint(cpIndex)
+    local cp = save.getCheckpoint(cpIndex)
+    if not cp then return end
+
+    -- Reload story sequence
+    package.loaded["content.scripts.story"] = nil
+    storySequence = require("content.scripts.story")
+
+    -- Restore story variables
+    dialogue.variables = copyDefaults(cp.variables or {})
+
+    -- Restore storyPlayed
+    storyPlayed = {}
+    if cp.storyPlayed then
+        for k, v in pairs(cp.storyPlayed) do
+            storyPlayed[k] = v
+        end
+    end
+
+    -- Load the script and resume from checkpoint index
+    local scriptModule = cp.scriptModule
+    package.loaded[scriptModule] = nil
+    local script = require(scriptModule)
+    dialogue.resume(script, scriptModule, cp.eventIndex)
+    gameState = "dialogue"
 end
 
 -- Dialogue callback: script hit a "start_match" event
@@ -122,12 +146,21 @@ dialogue.onScriptEnd = function()
     end
 end
 
+-- Dialogue callback: checkpoint reached — save game state
+dialogue.onCheckpoint = function(label)
+    save.saveCheckpoint(
+        label,
+        dialogue.currentScriptModule,
+        dialogue.getIndex(),
+        dialogue.variables,
+        storyPlayed
+    )
+end
+
 -- Billiards callback: match ended
 billiards.onMatchEnd = function(result)
-    -- Set the match_won story variable
     dialogue.variables.match_won = (result == "win")
 
-    -- Try to continue the story, otherwise go to menu
     if not tryStartNextDialogue() then
         goToMenu()
     end
@@ -139,13 +172,17 @@ local titleFont = nil
 
 local menuButtons = {
     { label = "New Game",  enabled = true,  action = "new_game" },
-    { label = "Continue",  enabled = false, action = "continue" },
+    { label = "Continue",  enabled = true,  action = "continue" },
     { label = "Options",   enabled = false, action = "options" },
     { label = "Gallery",   enabled = true,  action = "gallery" },
     { label = "Quit",      enabled = true,  action = "quit" },
 }
 
-local menuSelectedIndex = 1 -- keyboard selection
+local menuSelectedIndex = 1
+
+local function updateContinueButton()
+    menuButtons[2].enabled = save.hasCheckpoints()
+end
 
 local function getMenuButtonRects(w, h)
     local btnW = 320
@@ -172,6 +209,9 @@ local function executeMenuAction(action)
     if action == "new_game" then
         loadStory()
         tryStartNextDialogue()
+    elseif action == "continue" then
+        loadscreen.reset()
+        gameState = "loadscreen"
     elseif action == "gallery" then
         gallery.reset()
         gameState = "gallery"
@@ -213,25 +253,21 @@ end
 local function drawMenu()
     local w, h = love.graphics.getDimensions()
 
-    -- Background
     love.graphics.setColor(0.06, 0.06, 0.1)
     love.graphics.rectangle("fill", 0, 0, w, h)
 
-    -- Title
     if titleFont then love.graphics.setFont(titleFont) end
     love.graphics.setColor(1, 1, 1)
     local title = "BILLIARDS"
     local tf = love.graphics.getFont()
     love.graphics.print(title, w / 2 - tf:getWidth(title) / 2, h * 0.15)
 
-    -- Subtitle
     if menuFont then love.graphics.setFont(menuFont) end
     love.graphics.setColor(0.5, 0.5, 0.6)
     local sub = "A Pool Roguelike"
     local mf = love.graphics.getFont()
     love.graphics.print(sub, w / 2 - mf:getWidth(sub) / 2, h * 0.15 + tf:getHeight() + 10)
 
-    -- Buttons
     local rects = getMenuButtonRects(w, h)
     local mx, my = love.mouse.getPosition()
 
@@ -241,7 +277,6 @@ local function drawMenu()
         local selected = (i == menuSelectedIndex)
 
         if not btn.enabled then
-            -- Disabled button
             love.graphics.setColor(0.12, 0.12, 0.18, 0.6)
             love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 8, 8)
             love.graphics.setColor(0.3, 0.3, 0.35, 0.6)
@@ -249,7 +284,6 @@ local function drawMenu()
             love.graphics.rectangle("line", r.x, r.y, r.w, r.h, 8, 8)
             love.graphics.setColor(0.35, 0.35, 0.4)
         elseif hover or selected then
-            -- Highlighted button
             love.graphics.setColor(0.2, 0.25, 0.45, 0.9)
             love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 8, 8)
             love.graphics.setColor(0.7, 0.75, 1, 0.8)
@@ -257,7 +291,6 @@ local function drawMenu()
             love.graphics.rectangle("line", r.x, r.y, r.w, r.h, 8, 8)
             love.graphics.setColor(1, 1, 1)
         else
-            -- Normal button
             love.graphics.setColor(0.12, 0.14, 0.22, 0.85)
             love.graphics.rectangle("fill", r.x, r.y, r.w, r.h, 8, 8)
             love.graphics.setColor(0.5, 0.5, 0.6, 0.5)
@@ -284,6 +317,8 @@ function love.load()
     billiards.load()
     vnui.load()
     gallery.load()
+    loadscreen.load()
+    updateContinueButton()
 end
 
 function love.update(dt)
@@ -308,6 +343,9 @@ function love.draw()
     elseif gameState == "gallery" then
         local w, h = love.graphics.getDimensions()
         gallery.draw(w, h)
+    elseif gameState == "loadscreen" then
+        local w, h = love.graphics.getDimensions()
+        loadscreen.draw(w, h)
     end
 end
 
@@ -332,6 +370,14 @@ function love.mousepressed(x, y, button)
         if result == "back" then
             goToMenu()
         end
+    elseif gameState == "loadscreen" then
+        local w, h = love.graphics.getDimensions()
+        local result = loadscreen.mousepressed(x, y, button, w, h)
+        if result == "back" then
+            goToMenu()
+        elseif result == "load" then
+            loadCheckpoint(loadscreen.getSelectedIndex())
+        end
     end
 end
 
@@ -348,16 +394,24 @@ function love.keypressed(key)
         local result = gallery.keypressed(key)
         if result == "back" then
             goToMenu()
-            return -- don't propagate escape
+            return
+        end
+    elseif gameState == "loadscreen" then
+        local result = loadscreen.keypressed(key)
+        if result == "back" then
+            goToMenu()
+            return
+        elseif result == "load" then
+            loadCheckpoint(loadscreen.getSelectedIndex())
+            return
         end
     end
 
     if key == "escape" then
         if gameState == "menu" then
             love.event.quit()
-        elseif gameState ~= "gallery" then -- gallery handles its own escape
+        elseif gameState ~= "gallery" and gameState ~= "loadscreen" then
             goToMenu()
         end
     end
 end
-
