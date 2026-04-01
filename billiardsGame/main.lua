@@ -92,6 +92,9 @@ local function tryStartNextDialogue()
     return true
 end
 
+-- Forward declaration
+local updateContinueButton
+
 local function goToMenu()
     gameState = "menu"
     updateContinueButton()
@@ -180,7 +183,7 @@ local menuButtons = {
 
 local menuSelectedIndex = 1
 
-local function updateContinueButton()
+updateContinueButton = function()
     menuButtons[2].enabled = save.hasCheckpoints()
 end
 
