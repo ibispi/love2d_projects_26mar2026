@@ -27,6 +27,7 @@ local defaults = {
     volume = 1.0,
     muted = false,
     textSpeedIndex = 2,   -- Medium
+    language = "en",      -- language code
 }
 
 local current = {}

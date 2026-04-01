@@ -1,5 +1,7 @@
 -- Options menu UI
 local settings = require("lib.settings")
+local i18n = require("lib.i18n")
+local fonts = require("lib.fonts")
 
 local M = {}
 
@@ -24,10 +26,10 @@ local contentHeight = 0
 local dragging = nil
 
 function M.load()
-    titleFont   = love.graphics.newFont(36)
-    sectionFont = love.graphics.newFont(24)
-    labelFont   = love.graphics.newFont(20)
-    smallFont   = love.graphics.newFont(16)
+    titleFont   = fonts.get(36)
+    sectionFont = fonts.get(24)
+    labelFont   = fonts.get(20)
+    smallFont   = fonts.get(16)
 end
 
 ---------------------------------------------------------------------------
@@ -56,21 +58,21 @@ local function buildRows()
     rows = {}
 
     -- Display
-    addSection("Display")
-    addToggle("Fullscreen", "fullscreen")
-    addSelector("Resolution", "resolutionIndex", settings.RESOLUTIONS, function(res)
+    addSection(i18n.t("Display"))
+    addToggle(i18n.t("Fullscreen"), "fullscreen")
+    addSelector(i18n.t("Resolution"), "resolutionIndex", settings.RESOLUTIONS, function(res)
         return string.format("%dx%d", res[1], res[2])
     end)
 
     -- Audio
-    addSection("Audio")
-    addSlider("Volume", "volume", 0, 1)
-    addToggle("Mute", "muted")
+    addSection(i18n.t("Audio"))
+    addSlider(i18n.t("Volume"), "volume", 0, 1)
+    addToggle(i18n.t("Mute"), "muted")
 
     -- Text
-    addSection("Text")
-    addSelector("Text Speed", "textSpeedIndex", settings.TEXT_SPEEDS, function(entry)
-        return entry.label
+    addSection(i18n.t("Text"))
+    addSelector(i18n.t("Text Speed"), "textSpeedIndex", settings.TEXT_SPEEDS, function(entry)
+        return i18n.t(entry.label)
     end)
 end
 
@@ -161,14 +163,14 @@ function M.draw(w, h)
 
     love.graphics.setFont(titleFont)
     love.graphics.setColor(1, 1, 1)
-    local title = "Options"
+    local title = i18n.t("Options")
     love.graphics.print(title, w / 2 - titleFont:getWidth(title) / 2, 25)
 
     local mx, my = love.mouse.getPosition()
 
     -- Back button
     local back = getBackRect(w, h)
-    drawButton(back, "Back", isInside(mx, my, back), labelFont)
+    drawButton(back, i18n.t("Back"), isInside(mx, my, back), labelFont)
 
     -- Clip and scroll content area
     love.graphics.setScissor(0, 90, w, h - 90)
@@ -232,7 +234,7 @@ function M.draw(w, h)
             -- Label
             love.graphics.setFont(smallFont)
             love.graphics.setColor(0.6, 0.6, 0.7)
-            love.graphics.print(val and "On" or "Off", toggleX + toggleW + 12, y + ROW_H / 2 - smallFont:getHeight() / 2)
+            love.graphics.print(val and i18n.t("On") or i18n.t("Off"), toggleX + toggleW + 12, y + ROW_H / 2 - smallFont:getHeight() / 2)
 
         elseif row.type == "selector" then
             love.graphics.setFont(labelFont)

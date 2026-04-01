@@ -1,7 +1,9 @@
 -- Dialogue system: reads script tables and drives progression
+local utf8 = require("utf8")
 local characters = require("visualnovel.characters")
 local save = require("lib.save")
 local settings = require("lib.settings")
+local i18n = require("lib.i18n")
 
 local M = {}
 
@@ -60,7 +62,7 @@ local function processEvent()
                 state.index = state.index + 1
             else
                 state.currentSpeaker = event.character
-                state.currentText = event.text
+                state.currentText = i18n.t(event.text)
                 state.displayedText = ""
                 state.charTimer = 0
                 state.textComplete = false
@@ -76,7 +78,12 @@ local function processEvent()
                 -- This shouldn't happen if checkpoints are placed well
                 state.index = state.index + 1
             else
-                state.choices = event.choices
+                -- Translate choice texts for display
+                local translated = {}
+                for ci, c in ipairs(event.choices) do
+                    translated[ci] = { text = i18n.t(c.text), next = c.next }
+                end
+                state.choices = translated
                 state.waitingForInput = true
                 state.currentSpeaker = nil
                 state.currentText = ""
@@ -259,11 +266,18 @@ function M.update(dt)
     if not state.textComplete and #state.currentText > 0 then
         state.charTimer = state.charTimer + dt * state.textSpeed
         local charsToShow = math.floor(state.charTimer)
-        if charsToShow >= #state.currentText then
+        local totalChars = utf8.len(state.currentText) or #state.currentText
+        if charsToShow >= totalChars then
             state.displayedText = state.currentText
             state.textComplete = true
         else
-            state.displayedText = string.sub(state.currentText, 1, charsToShow)
+            -- Use utf8.offset to find the byte position after charsToShow characters
+            local bytePos = utf8.offset(state.currentText, charsToShow + 1)
+            if bytePos then
+                state.displayedText = string.sub(state.currentText, 1, bytePos - 1)
+            else
+                state.displayedText = state.currentText
+            end
         end
     end
 end

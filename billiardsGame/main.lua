@@ -10,6 +10,8 @@ local loadscreen = require("visualnovel.loadscreen")
 local optionsMenu = require("options")
 local save = require("lib.save")
 local settings = require("lib.settings")
+local i18n = require("lib.i18n")
+local fonts = require("lib.fonts")
 local allOpponents = require("content.scripts.opponents")
 
 local gameState = "menu" -- "menu", "dialogue", "billiards", "gallery", "loadscreen", "options"
@@ -99,6 +101,7 @@ local updateContinueButton
 
 local function goToMenu()
     gameState = "menu"
+    langSelectorOpen = false
     updateContinueButton()
 end
 
@@ -174,6 +177,7 @@ end
 -- Main menu
 local menuFont = nil
 local titleFont = nil
+local langFont = nil
 
 local menuButtons = {
     { label = "New Game",  enabled = true,  action = "new_game" },
@@ -184,6 +188,7 @@ local menuButtons = {
 }
 
 local menuSelectedIndex = 1
+local langSelectorOpen = false  -- is the language popup open?
 
 updateContinueButton = function()
     menuButtons[2].enabled = save.hasCheckpoints()
@@ -228,9 +233,64 @@ local function executeMenuAction(action)
     end
 end
 
+-- Language selector geometry helpers
+local FLAG_SIZE = 40       -- flag icon size in menu corner
+local FLAG_GAP = 10        -- gap between flags in popup
+local FLAG_POPUP_PAD = 12  -- padding inside popup
+
+local function getLangButtonRect(w, h)
+    return { x = w - FLAG_SIZE - 20, y = 20, w = FLAG_SIZE, h = FLAG_SIZE }
+end
+
+local function getLangPopupRects(w, h)
+    local langs = i18n.getLanguages()
+    local count = #langs
+    local popupW = count * (FLAG_SIZE + FLAG_GAP) - FLAG_GAP + FLAG_POPUP_PAD * 2
+    local popupH = FLAG_SIZE + FLAG_POPUP_PAD * 2
+    local popupX = w - popupW - 20
+    local popupY = 20 + FLAG_SIZE + 8
+
+    local rects = {}
+    for i, lang in ipairs(langs) do
+        rects[i] = {
+            x = popupX + FLAG_POPUP_PAD + (i - 1) * (FLAG_SIZE + FLAG_GAP),
+            y = popupY + FLAG_POPUP_PAD,
+            w = FLAG_SIZE,
+            h = FLAG_SIZE,
+            code = lang.code,
+            name = lang.name,
+        }
+    end
+    return { x = popupX, y = popupY, w = popupW, h = popupH }, rects
+end
+
 local function menuMousepressed(x, y, button)
     if button ~= 1 then return end
     local w, h = love.graphics.getDimensions()
+
+    -- Language popup clicks (check first if open)
+    if langSelectorOpen then
+        local popupRect, flagRects = getLangPopupRects(w, h)
+        for _, fr in ipairs(flagRects) do
+            if x >= fr.x and x <= fr.x + fr.w and y >= fr.y and y <= fr.y + fr.h then
+                i18n.setLanguage(fr.code)
+                settings.set("language", fr.code)
+                langSelectorOpen = false
+                return
+            end
+        end
+        -- Click outside popup closes it
+        langSelectorOpen = false
+        return
+    end
+
+    -- Language flag button
+    local langBtn = getLangButtonRect(w, h)
+    if x >= langBtn.x - 4 and x <= langBtn.x + langBtn.w + 4 and y >= langBtn.y - 4 and y <= langBtn.y + langBtn.h + 4 then
+        langSelectorOpen = not langSelectorOpen
+        return
+    end
+
     local rects = getMenuButtonRects(w, h)
     for i, r in ipairs(rects) do
         if menuButtons[i].enabled then
@@ -272,7 +332,7 @@ local function drawMenu()
 
     if menuFont then love.graphics.setFont(menuFont) end
     love.graphics.setColor(0.5, 0.5, 0.6)
-    local sub = "A Pool Roguelike"
+    local sub = i18n.t("A Pool Roguelike")
     local mf = love.graphics.getFont()
     love.graphics.print(sub, w / 2 - mf:getWidth(sub) / 2, h * 0.15 + tf:getHeight() + 10)
 
@@ -283,6 +343,7 @@ local function drawMenu()
         local r = rects[i]
         local hover = btn.enabled and mx >= r.x and mx <= r.x + r.w and my >= r.y and my <= r.y + r.h
         local selected = (i == menuSelectedIndex)
+        local displayLabel = i18n.t(btn.label)
 
         if not btn.enabled then
             love.graphics.setColor(0.12, 0.12, 0.18, 0.6)
@@ -309,7 +370,88 @@ local function drawMenu()
 
         if menuFont then love.graphics.setFont(menuFont) end
         local f = love.graphics.getFont()
-        love.graphics.print(btn.label, r.x + r.w / 2 - f:getWidth(btn.label) / 2, r.y + r.h / 2 - f:getHeight() / 2)
+        love.graphics.print(displayLabel, r.x + r.w / 2 - f:getWidth(displayLabel) / 2, r.y + r.h / 2 - f:getHeight() / 2)
+    end
+
+    -- Language flag button (top-right corner)
+    local langBtn = getLangButtonRect(w, h)
+    local langHover = mx >= langBtn.x and mx <= langBtn.x + langBtn.w and my >= langBtn.y and my <= langBtn.y + langBtn.h
+    local currentFlag = i18n.getCurrentFlag()
+
+    -- Button background
+    love.graphics.setColor(langHover and 0.25 or 0.15, langHover and 0.28 or 0.17, langHover and 0.45 or 0.28, 0.9)
+    love.graphics.rectangle("fill", langBtn.x - 4, langBtn.y - 4, langBtn.w + 8, langBtn.h + 8, 6, 6)
+    love.graphics.setColor(1, 1, 1, langHover and 0.7 or 0.4)
+    love.graphics.setLineWidth(langHover and 2 or 1)
+    love.graphics.rectangle("line", langBtn.x - 4, langBtn.y - 4, langBtn.w + 8, langBtn.h + 8, 6, 6)
+
+    if currentFlag then
+        local iw, ih = currentFlag:getDimensions()
+        local scale = math.min(langBtn.w / iw, langBtn.h / ih)
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.draw(currentFlag, langBtn.x + (langBtn.w - iw * scale) / 2, langBtn.y + (langBtn.h - ih * scale) / 2, 0, scale, scale)
+    else
+        love.graphics.setColor(1, 1, 1, 0.6)
+        if langFont then love.graphics.setFont(langFont) end
+        local code = i18n.getLanguageCode()
+        love.graphics.print(code, langBtn.x + 4, langBtn.y + 8)
+    end
+
+    -- Language popup
+    if langSelectorOpen then
+        local popupRect, flagRects = getLangPopupRects(w, h)
+
+        -- Popup background
+        love.graphics.setColor(0.08, 0.08, 0.14, 0.95)
+        love.graphics.rectangle("fill", popupRect.x, popupRect.y, popupRect.w, popupRect.h, 8, 8)
+        love.graphics.setColor(0.5, 0.5, 0.65, 0.6)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", popupRect.x, popupRect.y, popupRect.w, popupRect.h, 8, 8)
+
+        local currentCode = i18n.getLanguageCode()
+
+        for _, fr in ipairs(flagRects) do
+            local fHover = mx >= fr.x and mx <= fr.x + fr.w and my >= fr.y and my <= fr.y + fr.h
+            local isActive = (fr.code == currentCode)
+
+            -- Highlight border for active/hovered
+            if isActive then
+                love.graphics.setColor(0.4, 0.5, 0.9, 0.8)
+                love.graphics.setLineWidth(2)
+                love.graphics.rectangle("line", fr.x - 3, fr.y - 3, fr.w + 6, fr.h + 6, 4, 4)
+            elseif fHover then
+                love.graphics.setColor(0.6, 0.65, 0.9, 0.5)
+                love.graphics.setLineWidth(1)
+                love.graphics.rectangle("line", fr.x - 3, fr.y - 3, fr.w + 6, fr.h + 6, 4, 4)
+            end
+
+            -- Draw flag
+            local flagImg = i18n.getFlag(fr.code)
+            if flagImg then
+                local iw, ih = flagImg:getDimensions()
+                local scale = math.min(fr.w / iw, fr.h / ih)
+                love.graphics.setColor(1, 1, 1, (fHover or isActive) and 1 or 0.7)
+                love.graphics.draw(flagImg, fr.x + (fr.w - iw * scale) / 2, fr.y + (fr.h - ih * scale) / 2, 0, scale, scale)
+            else
+                love.graphics.setColor(0.3, 0.3, 0.4)
+                love.graphics.rectangle("fill", fr.x, fr.y, fr.w, fr.h, 4, 4)
+                love.graphics.setColor(1, 1, 1, 0.5)
+                if langFont then love.graphics.setFont(langFont) end
+                love.graphics.print(fr.code, fr.x + 4, fr.y + 10)
+            end
+
+            -- Tooltip with language name on hover
+            if fHover then
+                love.graphics.setColor(0, 0, 0, 0.85)
+                if langFont then love.graphics.setFont(langFont) end
+                local nameW = langFont:getWidth(fr.name)
+                local tipX = fr.x + fr.w / 2 - nameW / 2 - 6
+                local tipY = fr.y + fr.h + 6
+                love.graphics.rectangle("fill", tipX, tipY, nameW + 12, langFont:getHeight() + 8, 4, 4)
+                love.graphics.setColor(1, 1, 1)
+                love.graphics.print(fr.name, tipX + 6, tipY + 4)
+            end
+        end
     end
 end
 
@@ -320,8 +462,12 @@ function love.load()
     settings.load()
     settings.applyDisplay()
 
-    titleFont = love.graphics.newFont(64)
-    menuFont = love.graphics.newFont(28)
+    i18n.load()
+    i18n.setLanguage(settings.get("language") or "en")
+
+    titleFont = fonts.get(64)
+    menuFont = fonts.get(28)
+    langFont = fonts.get(16)
 
     save.load()
     billiards.load()

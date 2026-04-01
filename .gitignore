@@ -41,6 +41,8 @@ luac.out
 
 /billiardsGame/content/*
 !/billiardsGame/content/scripts/
+!/billiardsGame/content/translations/
+!/billiardsGame/content/flags/
 rclone-v1.73.3-windows-amd64
 /rclone/README.html
 /rclone/README.txt

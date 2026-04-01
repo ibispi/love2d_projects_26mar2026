@@ -1,5 +1,7 @@
 -- Load screen UI: paged list of saved checkpoints
 local save = require("lib.save")
+local i18n = require("lib.i18n")
+local fonts = require("lib.fonts")
 
 local M = {}
 
@@ -17,9 +19,9 @@ local SLOT_TOP = 100
 local SLOT_BOTTOM = 80
 
 function M.load()
-    gridFont = love.graphics.newFont(20)
-    titleFont = love.graphics.newFont(36)
-    smallFont = love.graphics.newFont(16)
+    gridFont = fonts.get(20)
+    titleFont = fonts.get(36)
+    smallFont = fonts.get(16)
 end
 
 local function totalPages()
@@ -136,26 +138,26 @@ function M.draw(w, h)
 
     love.graphics.setFont(titleFont)
     love.graphics.setColor(1, 1, 1)
-    local title = "Load Game"
+    local title = i18n.t("Load Game")
     love.graphics.print(title, w / 2 - titleFont:getWidth(title) / 2, 25)
 
     local mx, my = love.mouse.getPosition()
 
     -- Back button
     local back = getBackRect(w, h)
-    drawButton(back, "Back", isInside(mx, my, back), gridFont)
+    drawButton(back, i18n.t("Back"), isInside(mx, my, back), gridFont)
 
     -- Load button
     local loadBtn = getLoadRect(w, h)
     local canLoad = selectedIndex > 0
-    drawButton(loadBtn, "Load", canLoad and isInside(mx, my, loadBtn), gridFont, canLoad)
+    drawButton(loadBtn, i18n.t("Load"), canLoad and isInside(mx, my, loadBtn), gridFont, canLoad)
 
     -- Save slots
     local count = save.getCheckpointCount()
     if count == 0 then
         love.graphics.setFont(gridFont)
         love.graphics.setColor(0.4, 0.4, 0.5)
-        local noSaves = "No saved checkpoints"
+        local noSaves = i18n.t("No saved checkpoints")
         love.graphics.print(noSaves, w / 2 - gridFont:getWidth(noSaves) / 2, h * 0.4)
     else
         local rects = getSlotRects(w, h)

@@ -1,4 +1,5 @@
 local rules = require("billiards.game.rules")
+local i18n = require("lib.i18n")
 
 local M = {}
 
@@ -178,14 +179,14 @@ local function drawUI(state, config)
     -- Turn indicator
     local turnText
     if state.currentPlayer == 1 then
-        turnText = "YOUR TURN"
+        turnText = i18n.t("YOUR TURN")
     else
-        turnText = string.format("%s'S TURN", string.upper(state.opponent.name))
+        turnText = string.format(i18n.t("%s'S TURN"), string.upper(state.opponent.name))
     end
     love.graphics.print(turnText, 30, 18)
 
     -- Opponent name
-    local vsText = string.format("VS %s", state.opponent.name)
+    local vsText = string.format(i18n.t("VS %s"), state.opponent.name)
     love.graphics.setColor(state.opponentRenderColor)
     love.graphics.print(vsText, config.DESIGN_W / 2 - font:getWidth(vsText) / 2, 18)
 
@@ -215,15 +216,15 @@ local function drawUI(state, config)
     -- Phase indicator
     local phaseText = ""
     if phase == "aim" then
-        phaseText = "AIM - Click to set angle"
+        phaseText = i18n.t("AIM - Click to set angle")
     elseif phase == "power" then
-        phaseText = "POWER - Click to shoot!"
+        phaseText = i18n.t("POWER - Click to shoot!")
     elseif phase == "moving" then
         phaseText = "..."
     elseif phase == "turnOver" then
-        phaseText = "Switching turns..."
+        phaseText = i18n.t("Switching turns...")
     elseif phase == "aiThinking" then
-        phaseText = string.format("%s is thinking...", state.opponent.name)
+        phaseText = string.format(i18n.t("%s is thinking..."), state.opponent.name)
     end
     love.graphics.setColor(config.COLOR_UI_TEXT)
     love.graphics.print(phaseText, config.DESIGN_W - font:getWidth(phaseText) - 30, 18)
@@ -236,11 +237,11 @@ local function drawUI(state, config)
         love.graphics.setColor(1, 1, 1)
         local msg, msg2
         if state.gameResult == "win" then
-            msg = "YOU WIN!"
+            msg = i18n.t("YOU WIN!")
         else
-            msg = string.format("%s WINS!", string.upper(state.opponent.name))
+            msg = string.format(i18n.t("%s WINS!"), string.upper(state.opponent.name))
         end
-        msg2 = "Click or press SPACE to restart"
+        msg2 = i18n.t("Click or press SPACE to continue")
         love.graphics.print(msg, config.DESIGN_W / 2 - font:getWidth(msg) / 2, config.DESIGN_H / 2 - 45)
         love.graphics.print(msg2, config.DESIGN_W / 2 - font:getWidth(msg2) / 2, config.DESIGN_H / 2 + 30)
     end

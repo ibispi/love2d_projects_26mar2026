@@ -1,5 +1,7 @@
 -- Gallery UI: paged grid view with thumbnails, fullscreen viewer with arrow navigation
 local save = require("lib.save")
+local i18n = require("lib.i18n")
+local fonts = require("lib.fonts")
 
 local M = {}
 
@@ -26,8 +28,8 @@ function M.load()
     package.loaded["content.scripts.gallery"] = nil
     galleryDefs = require("content.scripts.gallery")
     imageCache = {}
-    gridFont = love.graphics.newFont(18)
-    titleFont = love.graphics.newFont(36)
+    gridFont = fonts.get(18)
+    titleFont = fonts.get(36)
 end
 
 -- Get or load an image for a gallery entry (returns image or nil)
@@ -173,19 +175,19 @@ local function drawGrid(w, h)
 
     love.graphics.setFont(titleFont)
     love.graphics.setColor(1, 1, 1)
-    local title = "Gallery"
+    local title = i18n.t("Gallery")
     love.graphics.print(title, w / 2 - titleFont:getWidth(title) / 2, 25)
 
     -- Count
     love.graphics.setFont(gridFont)
     love.graphics.setColor(0.6, 0.6, 0.7)
-    local countText = string.format("%d / %d unlocked", save.getUnlockedCount(), #galleryDefs)
+    local countText = string.format("%d / %d %s", save.getUnlockedCount(), #galleryDefs, i18n.t("unlocked"))
     love.graphics.print(countText, w - GRID_PAD - gridFont:getWidth(countText), 35)
 
     -- Back button
     local mx, my = love.mouse.getPosition()
     local back = getBackRect(w, h)
-    drawButton(back, "Back", isInside(mx, my, back), gridFont)
+    drawButton(back, i18n.t("Back"), isInside(mx, my, back), gridFont)
 
     -- Grid cells
     local cells = getGridCells(w, h)
@@ -209,7 +211,7 @@ local function drawGrid(w, h)
                 love.graphics.rectangle("fill", cell.x, cell.y, cell.w, cell.h, 6, 6)
                 love.graphics.setColor(1, 1, 1, 0.5)
                 love.graphics.setFont(gridFont)
-                local label = entry.title or ("Image " .. i)
+                local label = i18n.t(entry.title or ("Image " .. i))
                 love.graphics.print(label, cell.x + cell.w / 2 - gridFont:getWidth(label) / 2, cell.y + cell.h / 2 - gridFont:getHeight() / 2)
             end
 
@@ -221,7 +223,7 @@ local function drawGrid(w, h)
             -- Title below
             love.graphics.setColor(0.9, 0.9, 0.95)
             love.graphics.setFont(gridFont)
-            local titleText = entry.title or ""
+            local titleText = i18n.t(entry.title or "")
             love.graphics.print(titleText, cell.x + cell.w / 2 - gridFont:getWidth(titleText) / 2, cell.y + cell.h + 6)
         else
             -- Locked cell
@@ -235,7 +237,7 @@ local function drawGrid(w, h)
             -- Lock text
             love.graphics.setColor(0.35, 0.35, 0.4)
             love.graphics.setFont(gridFont)
-            local lockText = "Locked"
+            local lockText = i18n.t("Locked")
             love.graphics.print(lockText, cell.x + cell.w / 2 - gridFont:getWidth(lockText) / 2, cell.y + cell.h / 2 - gridFont:getHeight() / 2)
 
             -- Title below (hidden)
@@ -333,7 +335,7 @@ local function drawFullscreen(w, h)
     -- Close hint
     love.graphics.setColor(1, 1, 1, 0.4)
     love.graphics.setFont(gridFont)
-    local hint = "ESC to close"
+    local hint = i18n.t("ESC to close")
     love.graphics.print(hint, w - gridFont:getWidth(hint) - 20, 20)
 end
 

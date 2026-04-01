@@ -1,4 +1,7 @@
 -- Visual novel UI: text box, name plate, choice buttons
+local i18n = require("lib.i18n")
+local fonts = require("lib.fonts")
+
 local M = {}
 
 local font = nil
@@ -12,12 +15,12 @@ local displayNames = {
 }
 
 function M.load()
-    -- Use default font at a larger size for readability
-    font = love.graphics.newFont(24)
+    font = fonts.get(24)
 end
 
 local function getDisplayName(charKey)
-    return displayNames[charKey] or charKey
+    local name = displayNames[charKey] or charKey
+    return i18n.t(name)
 end
 
 local function drawTextBox(state, w, h)
