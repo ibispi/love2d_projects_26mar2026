@@ -1,5 +1,5 @@
 -- Main entry point — game state manager
--- States: menu, dialogue, billiards, gallery, loadscreen
+-- States: menu, dialogue, billiards, gallery, loadscreen, options
 
 local billiards = require("billiards.app")
 local dialogue = require("visualnovel.dialogue")
@@ -7,10 +7,12 @@ local vnui = require("visualnovel.ui")
 local characters = require("visualnovel.characters")
 local gallery = require("visualnovel.gallery")
 local loadscreen = require("visualnovel.loadscreen")
+local optionsMenu = require("options")
 local save = require("lib.save")
+local settings = require("lib.settings")
 local allOpponents = require("content.scripts.opponents")
 
-local gameState = "menu" -- "menu", "dialogue", "billiards", "gallery", "loadscreen"
+local gameState = "menu" -- "menu", "dialogue", "billiards", "gallery", "loadscreen", "options"
 
 -- Story progression: loaded from content/scripts/story.lua
 -- Each entry: { script = "module.path", conditions = { var = value, ... } }
@@ -176,7 +178,7 @@ local titleFont = nil
 local menuButtons = {
     { label = "New Game",  enabled = true,  action = "new_game" },
     { label = "Continue",  enabled = true,  action = "continue" },
-    { label = "Options",   enabled = false, action = "options" },
+    { label = "Options",   enabled = true,  action = "options" },
     { label = "Gallery",   enabled = true,  action = "gallery" },
     { label = "Quit",      enabled = true,  action = "quit" },
 }
@@ -212,6 +214,9 @@ local function executeMenuAction(action)
     if action == "new_game" then
         loadStory()
         tryStartNextDialogue()
+    elseif action == "options" then
+        optionsMenu.reset()
+        gameState = "options"
     elseif action == "continue" then
         loadscreen.reset()
         gameState = "loadscreen"
@@ -310,8 +315,10 @@ end
 
 function love.load()
     love.window.setTitle("Billiards")
-    love.window.setMode(1920, 1080, {resizable = true})
     love.graphics.setBackgroundColor(0, 0, 0)
+
+    settings.load()
+    settings.applyDisplay()
 
     titleFont = love.graphics.newFont(64)
     menuFont = love.graphics.newFont(28)
@@ -321,6 +328,7 @@ function love.load()
     vnui.load()
     gallery.load()
     loadscreen.load()
+    optionsMenu.load()
     updateContinueButton()
 end
 
@@ -349,6 +357,9 @@ function love.draw()
     elseif gameState == "loadscreen" then
         local w, h = love.graphics.getDimensions()
         loadscreen.draw(w, h)
+    elseif gameState == "options" then
+        local w, h = love.graphics.getDimensions()
+        optionsMenu.draw(w, h)
     end
 end
 
@@ -381,6 +392,12 @@ function love.mousepressed(x, y, button)
         elseif result == "load" then
             loadCheckpoint(loadscreen.getSelectedIndex())
         end
+    elseif gameState == "options" then
+        local w, h = love.graphics.getDimensions()
+        local result = optionsMenu.mousepressed(x, y, button, w, h)
+        if result == "back" then
+            goToMenu()
+        end
     end
 end
 
@@ -408,13 +425,37 @@ function love.keypressed(key)
             loadCheckpoint(loadscreen.getSelectedIndex())
             return
         end
+    elseif gameState == "options" then
+        local result = optionsMenu.keypressed(key)
+        if result == "back" then
+            goToMenu()
+            return
+        end
     end
 
     if key == "escape" then
         if gameState == "menu" then
             love.event.quit()
-        elseif gameState ~= "gallery" and gameState ~= "loadscreen" then
+        elseif gameState ~= "gallery" and gameState ~= "loadscreen" and gameState ~= "options" then
             goToMenu()
         end
+    end
+end
+
+function love.mousereleased(x, y, button)
+    if gameState == "options" then
+        optionsMenu.mousereleased(x, y, button)
+    end
+end
+
+function love.mousemoved(x, y)
+    if gameState == "options" then
+        optionsMenu.mousemoved(x, y)
+    end
+end
+
+function love.wheelmoved(wx, wy)
+    if gameState == "options" then
+        optionsMenu.wheelmoved(wx, wy)
     end
 end

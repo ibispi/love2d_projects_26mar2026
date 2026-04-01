@@ -1,6 +1,7 @@
 -- Dialogue system: reads script tables and drives progression
 local characters = require("visualnovel.characters")
 local save = require("lib.save")
+local settings = require("lib.settings")
 
 local M = {}
 
@@ -26,7 +27,7 @@ local state = {
     currentText = "",        -- full text of current line
     displayedText = "",      -- text shown so far (typewriter)
     charTimer = 0,           -- typewriter timer
-    textSpeed = 40,          -- characters per second
+    textSpeed = 40,          -- characters per second (overridden by settings each frame)
     textComplete = false,    -- has full text been revealed
     -- Choices
     choices = nil,           -- table of choice options, or nil
@@ -252,6 +253,9 @@ function M.getIndex()
 end
 
 function M.update(dt)
+    -- Pull text speed from settings each frame so changes apply immediately
+    state.textSpeed = settings.getTextSpeed().value
+
     if not state.textComplete and #state.currentText > 0 then
         state.charTimer = state.charTimer + dt * state.textSpeed
         local charsToShow = math.floor(state.charTimer)
