@@ -199,21 +199,51 @@ function M.resume(script, scriptModule, targetIndex)
     M.currentScriptModule = scriptModule
     characters.reset()
 
-    -- Replay silently up to the target index
+    -- Replay silently up to and including the target index, one event at a time.
+    -- We must step manually because processEvent() has an internal loop that would
+    -- blow past targetIndex during replay (no event causes a return when replaying).
     replaying = true
-    while state.index < targetIndex and state.index <= #state.script do
-        processEvent()
-        -- processEvent may have stopped at a dialogue/choice during replay,
-        -- but since replaying=true it should skip them. If somehow stuck, break.
-        if state.waitingForInput then
-            state.waitingForInput = false
-            state.index = state.index + 1
+    while state.index <= targetIndex and state.index <= #state.script do
+        local event = state.script[state.index]
+        if not event then break end
+
+        if event.type == "background" then
+            characters.setBackground(event.image, event.color, event.label)
+        elseif event.type == "show" then
+            characters.show(event.character, event.position, event.expression)
+            characters.snapOpacity(event.character)
+        elseif event.type == "hide" then
+            characters.hide(event.character)
+            characters.removeInstantly(event.character)
+        elseif event.type == "expression" then
+            characters.setExpression(event.character, event.expression)
+        elseif event.type == "dialogue" then
+            characters.setSpeaker(event.character)
+        elseif event.type == "set_var" then
+            M.variables[event.name] = event.value
+        elseif event.type == "add_var" then
+            local current = M.variables[event.name] or 0
+            M.variables[event.name] = current + (event.amount or 1)
+        elseif event.type == "unlock_gallery" then
+            save.unlockGallery(event.index)
+        elseif event.type == "goto" then
+            local target = state.labelMap[event.target]
+            if target then
+                state.index = target + 1
+            else
+                state.index = state.index + 1
+            end
+            -- goto already moved the index, skip the increment below
+            goto continue
         end
+        -- checkpoint, label, choice, start_match, unknown: just skip
+
+        state.index = state.index + 1
+        ::continue::
     end
     replaying = false
 
-    -- Now process events normally from the target index
-    state.index = targetIndex
+    -- Continue processing normally from the next event after the checkpoint
     processEvent()
 end
 
